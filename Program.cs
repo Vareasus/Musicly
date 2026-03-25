@@ -1,4 +1,4 @@
-﻿using Musicly.Components;
+using Musicly.Components;
 using Musicly.Data;
 using Musicly.Services;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -11,10 +11,26 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 // PostgreSQL + EF Core
+// Render.com provides DATABASE_URL; fallback to appsettings for local dev
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+string connectionString;
+
+if (!string.IsNullOrEmpty(databaseUrl))
+{
+    // Render provides: postgres://user:pass@host:port/dbname
+    var uri = new Uri(databaseUrl);
+    var userInfo = uri.UserInfo.Split(':');
+    connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+}
+else
+{
+    connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(connectionString));
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")), ServiceLifetime.Scoped);
+    options.UseNpgsql(connectionString), ServiceLifetime.Scoped);
 
 // Auth
 builder.Services.AddScoped<AuthService>();
