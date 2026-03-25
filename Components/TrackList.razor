@@ -1,0 +1,66 @@
+@implements IDisposable
+@inject AycaMusic.Services.MusicPlayerService Player
+@inject IJSRuntime JS
+
+<div class="tracklist-section">
+    <h2>Your Music</h2>
+    <div class="track-list">
+        @for (int i = 0; i < Player.Tracks.Count; i++)
+        {
+            var index = i;
+            var track = Player.Tracks[index];
+            var isActive = index == Player.CurrentTrackIndex;
+
+            <div class="track-item @(isActive ? "active-track" : "")" @onclick="() => OnTrackClick(index)">
+                <span class="track-num">
+                    @if (isActive && Player.IsPlaying)
+                    {
+                        <div class="track-eq">
+                            <span></span><span></span><span></span>
+                        </div>
+                    }
+                    else
+                    {
+                        @(index + 1)
+                    }
+                </span>
+                <div class="track-art" style="background: @track.GradientColor; background-size: 300% 300%;">
+                    @if (!string.IsNullOrEmpty(track.CoverImage))
+                    {
+                        <img src="@track.CoverImage" alt="@track.Title" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" />
+                    }
+                    else
+                    {
+                        @((MarkupString)track.IconSvg)
+                    }
+                </div>
+                <div class="track-info">
+                    <div class="track-name">@track.Title</div>
+                    <div class="track-artist-name">@track.Artist</div>
+                </div>
+                <span class="track-duration">—</span>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Player.OnStateChanged += StateChanged;
+    }
+
+    private void StateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task OnTrackClick(int index)
+    {
+        Player.LoadTrack(index);
+        await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+        await JS.InvokeVoidAsync("audioInterop.play");
+    }
+
+    public void Dispose()
+    {
+        Player.OnStateChanged -= StateChanged;
+    }
+}

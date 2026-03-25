@@ -1,0 +1,163 @@
+@page "/favorites"
+@implements IDisposable
+@inject AycaMusic.Services.MusicPlayerService Player
+@inject AycaMusic.Services.ListeningStatsService Stats
+@inject IJSRuntime JS
+
+<section class="favorites-page">
+    <div class="favorites-header">
+        <h1>Your <span>Favorites</span></h1>
+        <p>Songs you've liked — all in one place</p>
+        @if (likedTracks.Count > 0)
+        {
+            <div class="favorites-count-badge">❤️ @likedTracks.Count songs</div>
+        }
+    </div>
+
+    @if (likedTracks.Count == 0)
+    {
+        <div class="favorites-empty glass-card">
+            <div class="favorites-empty-icon">
+                <svg viewBox="0 0 24 24" width="64" height="64" fill="rgba(255,255,255,0.2)">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+            </div>
+            <h3>No favorites yet</h3>
+            <p>Tap the ❤️ button on any song to add it here</p>
+        </div>
+    }
+    else
+    {
+        <div class="favorites-actions">
+            <button class="favorites-play-all" @onclick="PlayAllLiked">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                Play All
+            </button>
+            <button class="favorites-shuffle" @onclick="ShuffleLiked">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+                Shuffle
+            </button>
+        </div>
+
+        <div class="favorites-list">
+            @for (int i = 0; i < likedTracks.Count; i++)
+            {
+                var track = likedTracks[i];
+                var index = Player.Tracks.IndexOf(track);
+                var isActive = index == Player.CurrentTrackIndex && Player.IsPlaying;
+
+                <div class="favorites-track-item @(isActive ? "playing" : "")">
+                    <div class="favorites-track-num">@(i + 1)</div>
+                    <div class="favorites-track-art" style="background: @track.GradientColor; background-size: 300% 300%;"
+                         @onclick="() => PlayTrack(index)">
+                        @if (!string.IsNullOrEmpty(track.CoverImage))
+                        {
+                            <img src="@track.CoverImage" alt="@track.Title" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" />
+                        }
+                        else
+                        {
+                            @((MarkupString)track.IconSvg)
+                        }
+                        <div class="favorites-play-overlay">
+                            @if (isActive)
+                            {
+                                <div class="fav-eq"><span></span><span></span><span></span></div>
+                            }
+                            else
+                            {
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
+                            }
+                        </div>
+                    </div>
+                    <div class="favorites-track-info" @onclick="() => PlayTrack(index)">
+                        <div class="favorites-track-title">@track.Title</div>
+                        <div class="favorites-track-meta">@track.Artist · @track.Genre</div>
+                    </div>
+                    <div class="favorites-track-actions">
+                        <button class="like-btn liked" title="Unlike" @onclick="() => ToggleLike(track.Id)">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private List<AycaMusic.Models.Track> likedTracks = new();
+
+    protected override void OnInitialized()
+    {
+        Player.OnStateChanged += StateChanged;
+        Stats.OnStatsChanged += StateChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadLiked();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadLiked()
+    {
+        var likedIds = await Stats.GetLikedTrackIdsAsync();
+        likedTracks = Player.Tracks.Where(t => likedIds.Contains(t.Id)).ToList();
+    }
+
+    private void StateChanged()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            await LoadLiked();
+            StateHasChanged();
+        });
+    }
+
+    private async Task ToggleLike(int trackId)
+    {
+        await Stats.ToggleLikeAsync(trackId);
+        await LoadLiked();
+    }
+
+    private async Task PlayTrack(int index)
+    {
+        Player.LoadTrack(index);
+        await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+        await JS.InvokeVoidAsync("audioInterop.play");
+    }
+
+    private async Task PlayAllLiked()
+    {
+        if (likedTracks.Count > 0)
+        {
+            var idx = Player.Tracks.IndexOf(likedTracks[0]);
+            if (idx >= 0) await PlayTrack(idx);
+        }
+    }
+
+    private async Task ShuffleLiked()
+    {
+        if (likedTracks.Count > 0)
+        {
+            var track = likedTracks[new Random().Next(likedTracks.Count)];
+            var idx = Player.Tracks.IndexOf(track);
+            if (idx >= 0)
+            {
+                Player.IsShuffled = true;
+                await PlayTrack(idx);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        Player.OnStateChanged -= StateChanged;
+        Stats.OnStatsChanged -= StateChanged;
+    }
+}

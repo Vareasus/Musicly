@@ -1,0 +1,224 @@
+@implements IDisposable
+@inject AycaMusic.Services.CommentService CommentSvc
+@inject AycaMusic.Services.MusicPlayerService Player
+@inject AycaMusic.Services.CustomAuthStateProvider AuthState
+@inject NavigationManager Nav
+
+<div class="comments-panel @(IsOpen ? "open" : "")">
+    <div class="comments-panel-header">
+        <h3>💬 Yorumlar — @Player.CurrentTrack.Title</h3>
+        <button class="comments-close-btn" @onclick="Close">✕</button>
+    </div>
+
+    @* Average Rating *@
+    <div class="comments-avg-rating">
+        <div class="avg-stars">
+            @for (int s = 1; s <= 5; s++)
+            {
+                <span class="star @(s <= Math.Round(avgRating) ? "filled" : "")">★</span>
+            }
+        </div>
+        <span class="avg-text">
+            @if (ratingCount > 0)
+            {
+                @($"{avgRating:F1} / 5  ({ratingCount} değerlendirme)")
+            }
+            else
+            {
+                @("Henüz değerlendirme yok")
+            }
+        </span>
+    </div>
+
+    @* Comment Form *@
+    <div class="comment-form glass-card">
+        <div class="comment-rating-picker">
+            <span class="rating-label">Puanın:</span>
+            @for (int s = 1; s <= 5; s++)
+            {
+                var starVal = s;
+                <span class="star-pick @(starVal <= selectedRating ? "selected" : "") @(starVal <= hoverRating ? "hover" : "")"
+                      @onclick="() => selectedRating = starVal"
+                      @onmouseover="() => hoverRating = starVal"
+                      @onmouseout="() => hoverRating = 0">★</span>
+            }
+        </div>
+        <div class="comment-input-row">
+            <textarea @bind="commentText" placeholder="Yorum yaz..." rows="2" class="comment-textarea"></textarea>
+            <button class="comment-send-btn" @onclick="SubmitComment" disabled="@isSubmitting">
+                @(isSubmitting ? "..." : "Gönder")
+            </button>
+        </div>
+        @if (!string.IsNullOrEmpty(errorMsg))
+        {
+            <div class="comment-error">@errorMsg</div>
+        }
+    </div>
+
+    @* Comment List *@
+    <div class="comment-list">
+        @if (comments.Count == 0)
+        {
+            <div class="comment-empty">Henüz yorum yok. İlk yorumu sen yaz! 🎵</div>
+        }
+        @foreach (var c in comments)
+        {
+            <div class="comment-item glass-card">
+                <div class="comment-header">
+                    <div class="comment-user" @onclick="() => GoToProfile(c.UserId)" @onclick:stopPropagation style="cursor:pointer;">
+                        <span class="comment-avatar">@c.Username[0].ToString().ToUpper()</span>
+                        <span class="comment-username clickable-user">@c.Username</span>
+                    </div>
+                    <div class="comment-stars">
+                        @for (int s = 1; s <= 5; s++)
+                        {
+                            <span class="star-sm @(s <= c.Rating ? "filled" : "")">★</span>
+                        }
+                    </div>
+                </div>
+                <p class="comment-text">@c.Text</p>
+                <div class="comment-footer">
+                    <span class="comment-time">@FormatTime(c.CreatedAt)</span>
+                    <button class="comment-like-btn @(c.IsLikedByCurrentUser ? "liked" : "")"
+                            @onclick="() => ToggleLike(c.Id)">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                            <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 2 7.59 8.59C7.22 8.95 7 9.45 7 10v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/>
+                        </svg>
+                        <span>@c.LikeCount</span>
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private List<CommentWithLikes> comments = new();
+    private string commentText = "";
+    private int selectedRating = 5;
+    private int hoverRating = 0;
+    private double avgRating;
+    private int ratingCount;
+    private bool isSubmitting;
+    private string errorMsg = "";
+    private int currentUserId;
+    private string currentUsername = "";
+    private int lastTrackId = -1;
+
+    protected override void OnInitialized()
+    {
+        Player.OnStateChanged += OnTrackChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            currentUserId = await AuthState.GetCurrentUserIdAsync();
+            var authState = await AuthState.GetAuthenticationStateAsync();
+            currentUsername = authState.User.Identity?.Name ?? "User";
+            await LoadComments();
+            StateHasChanged();
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && Player.CurrentTrack.Id != lastTrackId)
+        {
+            await LoadComments();
+        }
+    }
+
+    private void OnTrackChanged()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            if (IsOpen && Player.CurrentTrack.Id != lastTrackId)
+            {
+                await LoadComments();
+                StateHasChanged();
+            }
+        });
+    }
+
+    private async Task LoadComments()
+    {
+        try
+        {
+            lastTrackId = Player.CurrentTrack.Id;
+            comments = await CommentSvc.GetCommentsForTrackAsync(lastTrackId, currentUserId);
+            var (avg, count) = await CommentSvc.GetAverageRatingAsync(lastTrackId);
+            avgRating = avg;
+            ratingCount = count;
+        }
+        catch { }
+    }
+
+    private async Task SubmitComment()
+    {
+        errorMsg = "";
+        if (string.IsNullOrWhiteSpace(commentText))
+        {
+            errorMsg = "Yorum boş olamaz!";
+            return;
+        }
+        if (selectedRating < 1 || selectedRating > 5)
+        {
+            errorMsg = "Lütfen 1-5 arası puan ver!";
+            return;
+        }
+
+        isSubmitting = true;
+        try
+        {
+            await CommentSvc.AddCommentAsync(Player.CurrentTrack.Id, currentUserId, currentUsername, commentText, selectedRating);
+            commentText = "";
+            selectedRating = 5;
+            await LoadComments();
+        }
+        catch (Exception ex)
+        {
+            errorMsg = "Hata: " + ex.Message;
+        }
+        isSubmitting = false;
+    }
+
+    private async Task ToggleLike(int commentId)
+    {
+        try
+        {
+            await CommentSvc.ToggleLikeAsync(commentId, currentUserId, currentUsername);
+            await LoadComments();
+        }
+        catch { }
+    }
+
+    private void GoToProfile(int userId)
+    {
+        Nav.NavigateTo($"/profile/{userId}");
+    }
+
+    private async Task Close()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    private string FormatTime(DateTime dt)
+    {
+        var diff = DateTime.UtcNow - dt;
+        if (diff.TotalMinutes < 1) return "Az önce";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}dk önce";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}sa önce";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}g önce";
+        return dt.ToString("dd MMM yyyy");
+    }
+
+    public void Dispose()
+    {
+        Player.OnStateChanged -= OnTrackChanged;
+    }
+}

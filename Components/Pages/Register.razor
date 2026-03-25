@@ -1,0 +1,120 @@
+@page "/register"
+@layout EmptyLayout
+@inject AycaMusic.Services.AuthService Auth
+@inject NavigationManager Nav
+
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <div class="auth-logo-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="#fff"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            </div>
+            <span class="auth-logo-text">Musicly</span>
+        </div>
+        <h1>Create Account</h1>
+        <p class="auth-subtitle">Start your music journey</p>
+
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <div class="auth-error">⚠️ @error</div>
+        }
+        @if (!string.IsNullOrEmpty(success))
+        {
+            <div class="auth-success">✅ @success</div>
+        }
+
+        <form @onsubmit="OnRegister" @onsubmit:preventDefault>
+            <div class="auth-field">
+                <label>Username</label>
+                <input type="text" @bind="username" placeholder="Kullanıcı adı" />
+            </div>
+            <div class="auth-field">
+                <label>Email</label>
+                <input type="email" @bind="email" placeholder="E-posta adresi" />
+            </div>
+            <div class="auth-field">
+                <label>Password</label>
+                <input type="password" @bind="password" @bind:event="oninput" placeholder="Şifre" />
+            </div>
+            <div class="auth-field">
+                <label>Confirm Password</label>
+                <input type="password" @bind="confirmPassword" placeholder="Şifreyi tekrarla" />
+            </div>
+
+            <!-- PASSWORD RULES -->
+            <div class="password-rules">
+                <div class="rule @(password.Length >= 8 ? "pass" : "")">
+                    <span class="rule-icon">@(password.Length >= 8 ? "✅" : "❌")</span>
+                    En az 8 karakter
+                </div>
+                <div class="rule @(password.Any(char.IsUpper) ? "pass" : "")">
+                    <span class="rule-icon">@(password.Any(char.IsUpper) ? "✅" : "❌")</span>
+                    En az 1 büyük harf
+                </div>
+                <div class="rule @(password.Any(char.IsLower) ? "pass" : "")">
+                    <span class="rule-icon">@(password.Any(char.IsLower) ? "✅" : "❌")</span>
+                    En az 1 küçük harf
+                </div>
+                <div class="rule @(password.Any(char.IsDigit) ? "pass" : "")">
+                    <span class="rule-icon">@(password.Any(char.IsDigit) ? "✅" : "❌")</span>
+                    En az 1 rakam
+                </div>
+                <div class="rule @(HasSpecialChar() ? "pass" : "")">
+                    <span class="rule-icon">@(HasSpecialChar() ? "✅" : "❌")</span>
+                    En az 1 özel karakter
+                </div>
+            </div>
+
+            <button type="submit" class="auth-submit" disabled="@isLoading">
+                @if (isLoading) { <span class="auth-spinner"></span> }
+                else { <span>Create Account</span> }
+            </button>
+        </form>
+
+        <div class="auth-link">
+            Already have an account? <a href="/login">Sign in</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string username = "";
+    private string email = "";
+    private string password = "";
+    private string confirmPassword = "";
+    private string error = "";
+    private string success = "";
+    private bool isLoading;
+
+    private bool HasSpecialChar() => password.Any(c => "!@#$%^&*()_+-=[]{}|;':\",./<>?".Contains(c));
+
+    private async Task OnRegister()
+    {
+        error = "";
+        success = "";
+
+        if (password != confirmPassword)
+        {
+            error = "Şifreler eşleşmiyor";
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            var (ok, err) = await Auth.RegisterAsync(username, email, password);
+            if (!ok)
+            {
+                error = err;
+                return;
+            }
+            success = "Hesap oluşturuldu! Giriş sayfasına yönlendiriliyorsunuz...";
+            await Task.Delay(1500);
+            Nav.NavigateTo("/login");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

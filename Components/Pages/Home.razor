@@ -1,0 +1,205 @@
+@page "/"
+@implements IDisposable
+@inject AycaMusic.Services.MusicPlayerService Player
+@inject AycaMusic.Services.ListeningStatsService Stats
+@inject IJSRuntime JS
+
+<section class="hero">
+    <div class="greeting-badge">@GetGreeting()</div>
+    <h1>Feel the <span>Rhythm</span></h1>
+    <p>Immerse yourself in music with real-time flowing lyrics. Your premium listening experience starts here.</p>
+</section>
+
+<div class="main-content">
+
+    <!-- QUICK PICK MOODS -->
+    <div class="glass-card quick-pick-section">
+        <div class="section-header-row">
+            <div>
+                <h2>Quick Pick</h2>
+                <p class="section-subtitle">Choose your vibe and let the music match your mood</p>
+            </div>
+            <span class="section-badge">🎵 Mood Mix</span>
+        </div>
+        <div class="mood-buttons">
+            @foreach (var mood in moods)
+            {
+                <button class="mood-btn @(selectedMood == mood.Name ? "active" : "")"
+                        style="--mood-color: @mood.Color; --mood-gradient: @mood.Gradient;"
+                        @onclick="() => OnMoodClick(mood.Name)">
+                    <span class="mood-emoji">@mood.Emoji</span>
+                    <span class="mood-text">@mood.Name</span>
+                    @if (selectedMood == mood.Name)
+                    {
+                        <span class="mood-playing-indicator">
+                            <span></span><span></span><span></span>
+                        </span>
+                    }
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- RECENTLY PLAYED -->
+    <div class="glass-card recently-played-section">
+        <div class="section-header-row">
+            <div>
+                <h2>Recently Played</h2>
+                <p class="section-subtitle">Pick up where you left off</p>
+            </div>
+            <span class="section-badge">🕐 History</span>
+        </div>
+        <div class="recent-tracks">
+            @if (recentlyPlayed.Count == 0)
+            {
+                <div class="empty-recent">
+                    <div class="empty-icon-circle">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="rgba(255,255,255,0.5)"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                    </div>
+                    <p class="empty-title">No recent plays yet</p>
+                    <p class="empty-sub">Start listening to see your history here</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var stat in recentlyPlayed)
+                {
+                    var track = Player.Tracks.FirstOrDefault(t => t.Id == stat.TrackId);
+                    if (track != null)
+                    {
+                        var idx = Player.Tracks.IndexOf(track);
+                        var isActive = idx == Player.CurrentTrackIndex && Player.IsPlaying;
+                        <div class="recent-card @(isActive ? "playing" : "")" @onclick="() => PlayTrack(idx)">
+                            <div class="recent-art" style="background: @track.GradientColor; background-size: 300% 300%;">
+                                @if (!string.IsNullOrEmpty(track.CoverImage))
+                                {
+                                    <img src="@track.CoverImage" alt="@track.Title" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" />
+                                }
+                                else
+                                {
+                                    @((MarkupString)track.IconSvg)
+                                }
+                                <div class="recent-play-overlay">
+                                    @if (isActive)
+                                    {
+                                        <div class="recent-eq">
+                                            <span></span><span></span><span></span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <svg viewBox="0 0 24 24" width="24" height="24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
+                                    }
+                                </div>
+                            </div>
+                            <div class="recent-info">
+                                <div class="recent-title">@track.Title</div>
+                                <div class="recent-meta">@track.Artist</div>
+                                <div class="recent-time">@FormatLastPlayed(stat.LastPlayed)</div>
+                            </div>
+                        </div>
+                    }
+                }
+            }
+        </div>
+    </div>
+
+    <NowPlaying />
+    <LyricsPanel />
+    <TrackList />
+    <PlaylistGrid />
+</div>
+
+@code {
+    private string selectedMood = "";
+    private List<AycaMusic.Models.UserTrackStats> recentlyPlayed = new();
+
+    private record MoodOption(string Name, string Emoji, string Color, string Gradient);
+
+    private readonly List<MoodOption> moods = new()
+    {
+        new("Chill", "🌊", "#4facfe", "linear-gradient(135deg, #4facfe, #00f2fe)"),
+        new("Melancholy", "🌧️", "#7b2ff7", "linear-gradient(135deg, #7b2ff7, #e94590)"),
+        new("Energetic", "⚡", "#f5576c", "linear-gradient(135deg, #f5576c, #fda085)"),
+        new("Focus", "🎯", "#43e97b", "linear-gradient(135deg, #43e97b, #38f9d7)"),
+    };
+
+    protected override void OnInitialized()
+    {
+        Player.OnStateChanged += StateChanged;
+        Stats.OnStatsChanged += StateChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            recentlyPlayed = await Stats.GetRecentlyPlayedAsync(5);
+            StateHasChanged();
+        }
+    }
+
+    private void StateChanged()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            recentlyPlayed = await Stats.GetRecentlyPlayedAsync(5);
+            StateHasChanged();
+        });
+    }
+
+    private string GetGreeting()
+    {
+        var hour = DateTime.Now.Hour;
+        return hour switch
+        {
+            >= 5 and < 12 => "Good Morning 🌅",
+            >= 12 and < 17 => "Good Afternoon ☀️",
+            >= 17 and < 21 => "Good Evening 🌆",
+            _ => "Night Owl 🌙"
+        };
+    }
+
+    private async Task OnMoodClick(string mood)
+    {
+        selectedMood = mood == selectedMood ? "" : mood;
+        if (!string.IsNullOrEmpty(selectedMood))
+        {
+            var tracks = Player.GetTracksByMood(selectedMood);
+            if (tracks.Count > 0)
+            {
+                var track = tracks[new Random().Next(tracks.Count)];
+                var idx = Player.Tracks.IndexOf(track);
+                if (idx >= 0)
+                {
+                    Player.LoadTrack(idx);
+                    await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+                    await JS.InvokeVoidAsync("audioInterop.play");
+                }
+            }
+        }
+    }
+
+    private async Task PlayTrack(int index)
+    {
+        Player.LoadTrack(index);
+        await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+        await JS.InvokeVoidAsync("audioInterop.play");
+    }
+
+    private string FormatLastPlayed(DateTime dt)
+    {
+        if (dt == default) return "";
+        var diff = DateTime.UtcNow - dt;
+        if (diff.TotalMinutes < 1) return "Just now";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        return dt.ToString("dd MMM");
+    }
+
+    public void Dispose()
+    {
+        Player.OnStateChanged -= StateChanged;
+        Stats.OnStatsChanged -= StateChanged;
+    }
+}

@@ -1,0 +1,77 @@
+@page "/login"
+@layout EmptyLayout
+@inject AycaMusic.Services.AuthService Auth
+@inject AycaMusic.Services.CustomAuthStateProvider AuthState
+@inject NavigationManager Nav
+
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <div class="auth-logo-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="#fff"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            </div>
+            <span class="auth-logo-text">Musicly</span>
+        </div>
+        <h1>Welcome Back</h1>
+        <p class="auth-subtitle">Sign in to continue listening</p>
+
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <div class="auth-error">⚠️ @error</div>
+        }
+
+        <form @onsubmit="OnLogin" @onsubmit:preventDefault>
+            <div class="auth-field">
+                <label>Username</label>
+                <input type="text" @bind="username" placeholder="Kullanıcı adı" />
+            </div>
+            <div class="auth-field">
+                <label>Password</label>
+                <input type="password" @bind="password" placeholder="Şifre" />
+            </div>
+
+            <button type="submit" class="auth-submit" disabled="@isLoading">
+                @if (isLoading) { <span class="auth-spinner"></span> }
+                else { <span>Sign In</span> }
+            </button>
+        </form>
+
+        <div class="auth-link">
+            Don't have an account? <a href="/register">Create one</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string username = "";
+    private string password = "";
+    private string error = "";
+    private bool isLoading;
+
+    private async Task OnLogin()
+    {
+        error = "";
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+        {
+            error = "Tüm alanlar zorunludur";
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            var user = await Auth.LoginAsync(username, password);
+            if (user == null)
+            {
+                error = "Kullanıcı adı veya şifre hatalı";
+                return;
+            }
+            await AuthState.LoginAsync(user);
+            Nav.NavigateTo("/", forceLoad: true);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

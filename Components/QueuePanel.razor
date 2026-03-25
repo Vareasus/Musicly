@@ -1,0 +1,74 @@
+@inject AycaMusic.Services.MusicPlayerService Player
+@inject IJSRuntime JS
+
+<div class="queue-panel @(Player.ShowQueue ? "open" : "")">
+    <div class="queue-header">
+        <h3>🎵 Sıradaki Şarkılar</h3>
+        <div class="queue-actions">
+            @if (Player.Queue.Count > 0)
+            {
+                <button class="queue-clear-btn" @onclick="ClearQueue" title="Temizle">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                </button>
+            }
+            <button class="queue-close-btn" @onclick="Close" title="Kapat">✕</button>
+        </div>
+    </div>
+    <div class="queue-list">
+        @if (Player.Queue.Count == 0)
+        {
+            <div class="queue-empty">
+                <svg viewBox="0 0 24 24" width="40" height="40" fill="rgba(255,255,255,0.2)"><path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"/></svg>
+                <p>Kuyrukta şarkı yok</p>
+                <span>Şarkılara uzun basarak sıraya ekleyebilirsin</span>
+            </div>
+        }
+        else
+        {
+            @for (int i = 0; i < Player.Queue.Count; i++)
+            {
+                var track = Player.Queue[i];
+                var idx = i;
+                <div class="queue-item">
+                    <span class="queue-num">@(idx + 1)</span>
+                    <div class="queue-item-art" style="background: @track.GradientColor; background-size: 300% 300%;">
+                        @if (!string.IsNullOrEmpty(track.CoverImage))
+                        {
+                            <img src="@track.CoverImage" alt="@track.Title" />
+                        }
+                    </div>
+                    <div class="queue-item-info">
+                        <div class="queue-item-title">@track.Title</div>
+                        <div class="queue-item-artist">@track.Artist</div>
+                    </div>
+                    <button class="queue-play-btn" @onclick="() => PlayFromQueue(track)" title="Çal">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                    <button class="queue-remove-btn" @onclick="() => Remove(track.Id)" title="Kaldır">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    </button>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private void Close() => Player.ToggleQueue();
+
+    private void ClearQueue() => Player.ClearQueue();
+
+    private void Remove(int trackId) => Player.RemoveFromQueue(trackId);
+
+    private async Task PlayFromQueue(Track track)
+    {
+        var idx = Player.Tracks.IndexOf(track);
+        if (idx >= 0)
+        {
+            Player.RemoveFromQueue(track.Id);
+            Player.LoadTrack(idx);
+            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+            await JS.InvokeVoidAsync("audioInterop.play");
+        }
+    }
+}

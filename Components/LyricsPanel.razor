@@ -1,0 +1,125 @@
+@implements IDisposable
+@inject AycaMusic.Services.MusicPlayerService Player
+@inject IJSRuntime JS
+
+<div class="glass-card lyrics-panel">
+    <div class="lyrics-header">
+        <h2>Lyrics</h2>
+        <div class="lyrics-header-actions">
+            <button class="karaoke-toggle @(karaokeMode ? "active" : "")" @onclick="ToggleKaraoke" title="Karaoke Modu">
+                🎤
+            </button>
+            <span class="lyrics-badge">Synced</span>
+        </div>
+    </div>
+    <div class="lyrics-scroll @(karaokeMode ? "karaoke-active" : "")" id="lyrics-scroll">
+        @{ var lyrics = Player.CurrentTrack.Lyrics; }
+        @for (int i = 0; i < lyrics.Count; i++)
+        {
+            var index = i;
+            var lyric = lyrics[index];
+            var cssClass = "lyric-line";
+
+            if (index == activeLyricIndex)
+                cssClass += " active";
+            else if (index < activeLyricIndex)
+                cssClass += " past";
+
+            @if (karaokeMode && index == activeLyricIndex)
+            {
+                <div class="@cssClass karaoke-line" @onclick="() => SeekToLyric(lyric.Time)">
+                    @{
+                        var words = lyric.Text.Split(' ');
+                        var currentProgress = GetWordProgress(lyric, lyrics, index);
+                    }
+                    @for (int w = 0; w < words.Length; w++)
+                    {
+                        var wordIdx = w;
+                        var isHighlighted = wordIdx < currentProgress;
+                        <span class="karaoke-word @(isHighlighted ? "highlighted" : "")">@words[wordIdx] </span>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="@cssClass" @onclick="() => SeekToLyric(lyric.Time)">
+                    @lyric.Text
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private int activeLyricIndex = -1;
+    private int lastScrolledIndex = -1;
+    private bool karaokeMode;
+
+    protected override void OnInitialized()
+    {
+        Player.OnStateChanged += OnPlayerStateChanged;
+    }
+
+    private void ToggleKaraoke() => karaokeMode = !karaokeMode;
+
+    private void OnPlayerStateChanged()
+    {
+        var newIndex = GetActiveLyricIndex();
+        bool needsScroll = false;
+
+        if (newIndex != activeLyricIndex)
+        {
+            activeLyricIndex = newIndex;
+            if (activeLyricIndex >= 0 && activeLyricIndex != lastScrolledIndex)
+            {
+                lastScrolledIndex = activeLyricIndex;
+                needsScroll = true;
+            }
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            if (needsScroll)
+            {
+                await Task.Delay(50);
+                await JS.InvokeVoidAsync("scrollLyricIntoView", activeLyricIndex);
+            }
+        });
+    }
+
+    private int GetActiveLyricIndex()
+    {
+        var lyrics = Player.CurrentTrack.Lyrics;
+        for (int i = lyrics.Count - 1; i >= 0; i--)
+        {
+            if (Player.CurrentTime >= lyrics[i].Time)
+                return i;
+        }
+        return -1;
+    }
+
+    private int GetWordProgress(LyricLine current, List<LyricLine> lyrics, int index)
+    {
+        var words = current.Text.Split(' ');
+        if (words.Length == 0) return 0;
+
+        double lineStart = current.Time;
+        double lineEnd = index + 1 < lyrics.Count ? lyrics[index + 1].Time : lineStart + 6;
+        double duration = lineEnd - lineStart;
+        double elapsed = Player.CurrentTime - lineStart;
+        double progress = Math.Clamp(elapsed / duration, 0, 1);
+
+        return (int)Math.Ceiling(progress * words.Length);
+    }
+
+    private async Task SeekToLyric(double time)
+    {
+        await JS.InvokeVoidAsync("audioInterop.seek", time);
+    }
+
+    public void Dispose()
+    {
+        Player.OnStateChanged -= OnPlayerStateChanged;
+    }
+}

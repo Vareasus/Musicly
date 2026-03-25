@@ -1,0 +1,136 @@
+@page "/radio"
+@implements IDisposable
+@inject AycaMusic.Services.MusicPlayerService Player
+@inject IJSRuntime JS
+
+<section class="radio-page">
+    <div class="radio-header">
+        <h1>Live <span>Radio</span></h1>
+        <p>Curated stations, endless vibes. Pick a station and let the music flow.</p>
+    </div>
+
+    <div class="stations-grid">
+        @foreach (var station in stations)
+        {
+            var isActive = activeStation == station.Name && Player.IsPlaying;
+            <div class="station-card @(isActive ? "broadcasting" : "")"
+                 @onclick="() => OnStationClick(station)">
+                <div class="station-art" style="background: @station.Gradient;">
+                    <div class="station-icon">@((MarkupString)station.Icon)</div>
+                    @if (isActive)
+                    {
+                        <div class="broadcasting-overlay">
+                            <div class="pulse-ring"></div>
+                            <div class="pulse-ring delay-1"></div>
+                            <div class="pulse-ring delay-2"></div>
+                            <div class="broadcast-label">NOW PLAYING</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="station-play-overlay">
+                            <svg viewBox="0 0 24 24" width="28" height="28" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
+                        </div>
+                    }
+                </div>
+                <div class="station-info">
+                    <div class="station-name">@station.Name</div>
+                    <div class="station-desc">@station.Description</div>
+                    <div class="station-meta">
+                        <span class="station-live-dot @(isActive ? "active" : "")"></span>
+                        <span>@(isActive ? "Live Now" : station.TrackCount + " tracks")</span>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- STATION INFO -->
+    @if (!string.IsNullOrEmpty(activeStation))
+    {
+        <div class="glass-card radio-now-section">
+            <div class="radio-now-header">
+                <div class="radio-eq">
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <h3>Broadcasting: @activeStation</h3>
+            </div>
+            <div class="radio-now-track">
+                <div class="radio-now-art" style="background: @Player.CurrentTrack.GradientColor; background-size: 300% 300%;">
+                    @if (!string.IsNullOrEmpty(Player.CurrentTrack.CoverImage))
+                    {
+                        <img src="@Player.CurrentTrack.CoverImage" alt="@Player.CurrentTrack.Title" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" />
+                    }
+                    else
+                    {
+                        @((MarkupString)Player.CurrentTrack.IconSvg)
+                    }
+                </div>
+                <div>
+                    <div class="radio-now-title">@Player.CurrentTrack.Title</div>
+                    <div class="radio-now-artist">@Player.CurrentTrack.Artist</div>
+                </div>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private string activeStation = "";
+
+    private record StationInfo(string Name, string Description, string Genre, string Gradient, string Icon, int TrackCount);
+
+    private List<StationInfo> stations = new();
+
+    protected override void OnInitialized()
+    {
+        Player.OnStateChanged += StateChanged;
+        BuildStations();
+    }
+
+    private void BuildStations()
+    {
+        stations = new List<StationInfo>
+        {
+            new("Ambient Waves", "Dreamy soundscapes & textures", "Ambient",
+                "linear-gradient(135deg, #4facfe, #00f2fe)",
+                "<svg viewBox='0 0 24 24' width='40' height='40' fill='rgba(255,255,255,0.9)'><path d='M21 14c-1.15 0-2.1-.56-2.77-1.37C17.32 13.74 16.07 15 14.5 15c-1.57 0-2.82-1.26-3.23-2.37C10.6 13.44 9.65 14 8.5 14c-1.15 0-2.1-.56-2.77-1.37C4.82 13.74 3.57 15 2 15v2c1.57 0 2.82-1.26 3.23-2.37.67.81 1.62 1.37 2.77 1.37 1.15 0 2.1-.56 2.77-1.37.41 1.11 1.66 2.37 3.23 2.37 1.57 0 2.82-1.26 3.23-2.37.67.81 1.62 1.37 2.77 1.37V14z'/></svg>",
+                Player.GetTracksByGenre("Ambient").Count),
+            new("Cinematic Vibes", "Epic scores & dramatic moods", "Cinematic",
+                "linear-gradient(135deg, #e94560, #1a1a2e)",
+                "<svg viewBox='0 0 24 24' width='40' height='40' fill='rgba(255,255,255,0.9)'><path d='M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z'/></svg>",
+                Player.GetTracksByGenre("Cinematic").Count),
+            new("Electronic Pulse", "High energy electronic beats", "Electronic",
+                "linear-gradient(135deg, #7b2ff7, #f093fb)",
+                "<svg viewBox='0 0 24 24' width='40' height='40' fill='rgba(255,255,255,0.9)'><path d='M7 2v11h3v9l7-12h-4l4-8z'/></svg>",
+                Player.GetTracksByGenre("Electronic").Count),
+            new("Lo-Fi Café", "Cozy beats for work & study", "Lo-Fi",
+                "linear-gradient(135deg, #f5576c, #fda085)",
+                "<svg viewBox='0 0 24 24' width='40' height='40' fill='rgba(255,255,255,0.9)'><path d='M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 12h4v2H4v-2zm10 6H4v-2h10v2zm6 0h-4v-2h4v2zm0-4H10v-2h10v2z'/></svg>",
+                Player.GetTracksByGenre("Lo-Fi").Count),
+            new("Chill Zone", "Relaxed tunes for unwinding", "Chill",
+                "linear-gradient(135deg, #43e97b, #38f9d7)",
+                "<svg viewBox='0 0 24 24' width='40' height='40' fill='rgba(255,255,255,0.9)'><path d='M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z'/></svg>",
+                Player.GetTracksByGenre("Chill").Count),
+            new("Power Surge", "Intense & energetic anthems", "Power",
+                "linear-gradient(135deg, #ff512f, #dd2476)",
+                "<svg viewBox='0 0 24 24' width='40' height='40' fill='rgba(255,255,255,0.9)'><path d='M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67z'/></svg>",
+                Player.GetTracksByGenre("Power").Count),
+        };
+    }
+
+    private void StateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task OnStationClick(StationInfo station)
+    {
+        activeStation = station.Name;
+        Player.PlayRandomFromGenre(station.Genre);
+        await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+        await JS.InvokeVoidAsync("audioInterop.play");
+    }
+
+    public void Dispose()
+    {
+        Player.OnStateChanged -= StateChanged;
+    }
+}

@@ -1,0 +1,458 @@
+@page "/admin"
+@implements IDisposable
+@inject AycaMusic.Services.AuthService Auth
+@inject AycaMusic.Services.ListeningStatsService Stats
+@inject AycaMusic.Services.NotificationService NotifService
+@inject AycaMusic.Services.MusicPlayerService Player
+@inject AycaMusic.Services.CommentService CommentSvc
+@inject AycaMusic.Services.SongRequestService ReqSvc
+@inject AycaMusic.Services.TrackUploadService UploadSvc
+@inject AycaMusic.Services.CustomAuthStateProvider AuthState
+@inject NavigationManager Nav
+
+<section class="admin-page">
+    <div class="admin-header">
+        <h1>Admin <span>Dashboard</span></h1>
+        <p>Manage users, requests and monitor listening activity</p>
+    </div>
+
+    @if (!isAdmin)
+    {
+        <div class="glass-card" style="text-align:center;padding:60px;">
+            <h3>🔒 Access Denied</h3>
+            <p style="color:var(--text-secondary);">Only admins can view this page.</p>
+        </div>
+    }
+    else
+    {
+        <!-- UPLOAD TRACK -->
+        <div class="glass-card admin-notify-section">
+            <h3>🎵 Şarkı Yükle</h3>
+            <div class="admin-upload-form">
+                <div class="upload-row">
+                    <label class="upload-file-label">
+                        <InputFile OnChange="OnFileSelected" accept=".mp3" />
+                        <span class="upload-file-btn">📁 MP3 Dosya Seç</span>
+                    </label>
+                    @if (selectedFile != null)
+                    {
+                        <span class="upload-file-name">@selectedFile.Name (@FormatFileSize(selectedFile.Size))</span>
+                    }
+                </div>
+                <div class="upload-fields">
+                    <input type="text" @bind="uploadTitle" placeholder="Şarkı Adı *" class="admin-notify-input" />
+                    <input type="text" @bind="uploadArtist" placeholder="Sanatçı" class="admin-notify-input" />
+                </div>
+                <div class="upload-fields">
+                    <select @bind="uploadGenre" class="admin-notify-input">
+                        <option value="Ambient">Ambient</option>
+                        <option value="Pop">Pop</option>
+                        <option value="Rock">Rock</option>
+                        <option value="Hip-Hop">Hip-Hop</option>
+                        <option value="Electronic">Electronic</option>
+                        <option value="Jazz">Jazz</option>
+                        <option value="Classical">Classical</option>
+                        <option value="R&B">R&B</option>
+                        <option value="Metal">Metal</option>
+                        <option value="Folk">Folk</option>
+                        <option value="Indie">Indie</option>
+                    </select>
+                    <select @bind="uploadMood" class="admin-notify-input">
+                        <option value="Chill">Chill</option>
+                        <option value="Energetic">Energetic</option>
+                        <option value="Melancholic">Melancholic</option>
+                        <option value="Happy">Happy</option>
+                        <option value="Dark">Dark</option>
+                        <option value="Romantic">Romantic</option>
+                        <option value="Focus">Focus</option>
+                    </select>
+                </div>
+                <div class="upload-gradient-presets">
+                    <span style="color:var(--text-secondary);font-size:13px;">Renk:</span>
+                    @foreach (var g in gradientPresets)
+                    {
+                        <button class="gradient-preset @(uploadGradient == g.Value ? "active" : "")"
+                                style="background: @g.Value;" title="@g.Key"
+                                @onclick="() => uploadGradient = g.Value"></button>
+                    }
+                </div>
+                <button class="admin-notify-btn" @onclick="OnUploadTrack" disabled="@isUploading">
+                    @(isUploading ? "Yükleniyor..." : "⬆️ Yükle")
+                </button>
+                @if (!string.IsNullOrEmpty(uploadMessage))
+                {
+                    <div class="@(uploadSuccess ? "auth-success" : "auth-error")" style="margin-top:12px;">@uploadMessage</div>
+                }
+            </div>
+        </div>
+
+        <!-- TRACK MANAGEMENT -->
+        <div class="glass-card admin-users-section">
+            <h3>🎶 Şarkılar (@Player.Tracks.Count)</h3>
+            <div class="stats-table-wrapper">
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Şarkı</th>
+                            <th>Sanatçı</th>
+                            <th>Tür</th>
+                            <th>Mood</th>
+                            <th>Dosya</th>
+                            <th>Sil</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Player.Tracks.Count; i++)
+                        {
+                            var track = Player.Tracks[i];
+                            <tr>
+                                <td class="rank">@(i + 1)</td>
+                                <td style="font-weight:600;">@track.Title</td>
+                                <td>@track.Artist</td>
+                                <td>@track.Genre</td>
+                                <td>@track.Mood</td>
+                                <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text-secondary);">@track.Src</td>
+                                <td>
+                                    <button class="admin-delete-btn" @onclick="() => OnDeleteTrack(track.Id)">🗑️</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- NOTIFY USERS -->
+        <div class="glass-card admin-notify-section">
+            <h3>📢 Send Notification</h3>
+            <form @onsubmit="SendNotification" @onsubmit:preventDefault>
+                <div class="admin-notify-row">
+                    <input type="text" @bind="notifyMessage" placeholder="Tüm kullanıcılara mesaj gönder (örn: Yeni şarkı eklendi!)" class="admin-notify-input" />
+                    <button type="submit" class="admin-notify-btn" disabled="@isSending">
+                        @(isSending ? "Gönderiliyor..." : "Gönder")
+                    </button>
+                </div>
+            </form>
+            @if (!string.IsNullOrEmpty(notifySuccess))
+            {
+                <div class="auth-success" style="margin-top:12px;">✅ @notifySuccess</div>
+            }
+        </div>
+
+        <!-- REQUESTS -->
+        <div class="glass-card admin-users-section">
+            <h3>📨 Talepler
+                @if (pendingCount > 0)
+                {
+                    <span class="admin-pending-badge">@pendingCount yeni</span>
+                }
+            </h3>
+            @if (allRequests.Count == 0)
+            {
+                <div class="profile-empty">Henüz talep yok</div>
+            }
+            else
+            {
+                <div class="admin-request-list">
+                    @foreach (var r in allRequests)
+                    {
+                        <div class="admin-request-card @GetStatusClass(r.Status)">
+                            <div class="admin-req-header">
+                                <div class="admin-req-left">
+                                    <span class="request-cat-badge" style="--cat-color: @GetCatColor(r.Category);">@GetCatEmoji(r.Category) @GetCatLabel(r.Category)</span>
+                                    <span class="admin-req-title">@r.Title</span>
+                                </div>
+                                <span class="request-status-badge @GetStatusClass(r.Status)">@GetStatusText(r.Status)</span>
+                            </div>
+                            <div class="admin-req-meta">
+                                <span>👤 @r.Username</span>
+                                <span>📅 @r.CreatedAt.ToString("dd MMM yyyy HH:mm")</span>
+                            </div>
+                            @if (!string.IsNullOrEmpty(r.Description))
+                            {
+                                <p class="admin-req-desc">@r.Description</p>
+                            }
+                            @if (r.Status == AycaMusic.Models.RequestStatus.Pending)
+                            {
+                                <div class="admin-req-actions">
+                                    <input type="text" @bind="responseTexts[r.Id]" placeholder="Yanıt mesajı (opsiyonel)" class="admin-response-input" />
+                                    <button class="admin-approve-btn" @onclick="() => RespondToRequest(r.Id, AycaMusic.Models.RequestStatus.Approved)">✅ Onayla</button>
+                                    <button class="admin-reject-btn" @onclick="() => RespondToRequest(r.Id, AycaMusic.Models.RequestStatus.Rejected)">❌ Reddet</button>
+                                </div>
+                            }
+                            else if (!string.IsNullOrEmpty(r.AdminResponse))
+                            {
+                                <div class="admin-req-response">
+                                    <span class="admin-response-label">🛡️ Admin Yanıtı:</span>
+                                    <p>@r.AdminResponse</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- USERS TABLE -->
+        <div class="glass-card admin-users-section">
+            <h3>👥 Users (@users.Count)</h3>
+            <div class="stats-table-wrapper">
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Registered</th>
+                            <th>Total Plays</th>
+                            <th>Listening Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < users.Count; i++)
+                        {
+                            var user = users[i];
+                            var userPlays = userStats.GetValueOrDefault(user.Id, (0, 0));
+                            <tr>
+                                <td class="rank">@(i + 1)</td>
+                                <td style="font-weight:600;">@user.Username</td>
+                                <td>@user.Email</td>
+                                <td><span class="role-badge @(user.Role == "Admin" ? "admin" : "user")">@user.Role</span></td>
+                                <td class="date-cell">@user.CreatedAt.ToString("dd MMM yyyy")</td>
+                                <td class="plays-cell">@userPlays.Item1</td>
+                                <td>@Stats.FormatSeconds(userPlays.Item2)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- COMMENT MODERATION -->
+        <div class="glass-card admin-users-section">
+            <h3>💬 Comment Moderation (@allComments.Count)</h3>
+            <div class="stats-table-wrapper">
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Track</th>
+                            <th>User</th>
+                            <th>Rating</th>
+                            <th>Comment</th>
+                            <th>Date</th>
+                            <th>Likes</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < allComments.Count; i++)
+                        {
+                            var comment = allComments[i];
+                            <tr>
+                                <td class="rank">@(i + 1)</td>
+                                <td style="font-weight:600;">@comment.TrackTitle</td>
+                                <td>@comment.Username</td>
+                                <td>
+                                    @for (int s = 1; s <= 5; s++)
+                                    {
+                                        <span style="color:@(s <= comment.Rating ? "#ffd700" : "#555");font-size:12px;">★</span>
+                                    }
+                                </td>
+                                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">@comment.Text</td>
+                                <td class="date-cell">@comment.CreatedAt.ToString("dd MMM HH:mm")</td>
+                                <td class="plays-cell">@comment.LikeCount</td>
+                                <td>
+                                    <button class="admin-delete-btn" @onclick="() => DeleteComment(comment.Id)">🗑️ Sil</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private List<AycaMusic.Models.AppUser> users = new();
+    private Dictionary<int, (int, double)> userStats = new();
+    private bool isAdmin;
+    private string notifyMessage = "";
+    private string notifySuccess = "";
+    private bool isSending;
+    private List<CommentWithLikes> allComments = new();
+    private List<AycaMusic.Models.SongRequest> allRequests = new();
+    private Dictionary<int, string> responseTexts = new();
+    private int pendingCount;
+    private int adminUserId;
+
+    // Upload
+    private Microsoft.AspNetCore.Components.Forms.IBrowserFile? selectedFile;
+    private string uploadTitle = "";
+    private string uploadArtist = "";
+    private string uploadGenre = "Ambient";
+    private string uploadMood = "Chill";
+    private string uploadGradient = "linear-gradient(135deg, #1a1a2e, #16213e, #0f3460, #e94560)";
+    private string uploadMessage = "";
+    private bool uploadSuccess;
+    private bool isUploading;
+
+    private readonly Dictionary<string, string> gradientPresets = new()
+    {
+        ["Gece"] = "linear-gradient(135deg, #1a1a2e, #16213e, #0f3460, #e94560)",
+        ["Okyanus"] = "linear-gradient(135deg, #0f0c29, #302b63, #24243e)",
+        ["Gün Batımı"] = "linear-gradient(135deg, #fc4a1a, #f7b733)",
+        ["Orman"] = "linear-gradient(135deg, #134e5e, #71b280)",
+        ["Lav"] = "linear-gradient(135deg, #ed213a, #93291e)",
+        ["Mor"] = "linear-gradient(135deg, #7b2ff7, #c471ed, #f7797d)",
+        ["Altın"] = "linear-gradient(135deg, #f7971e, #ffd200)",
+        ["Buz"] = "linear-gradient(135deg, #2193b0, #6dd5ed)",
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            adminUserId = await AuthState.GetCurrentUserIdAsync();
+            if (adminUserId <= 0) { Nav.NavigateTo("/login"); return; }
+
+            var user = await Auth.GetUserAsync(adminUserId);
+            isAdmin = user?.Role == "Admin";
+
+            if (isAdmin)
+            {
+                users = await Auth.GetAllUsersAsync();
+                foreach (var u in users)
+                {
+                    var plays = await Stats.GetTotalPlaysForUserAsync(u.Id);
+                    var secs = await Stats.GetTotalListeningForUserAsync(u.Id);
+                    userStats[u.Id] = (plays, secs);
+                }
+                allComments = await CommentSvc.GetAllCommentsAsync();
+                allRequests = await ReqSvc.GetAllRequestsAsync();
+                pendingCount = allRequests.Count(r => r.Status == AycaMusic.Models.RequestStatus.Pending);
+                foreach (var r in allRequests.Where(r => r.Status == AycaMusic.Models.RequestStatus.Pending))
+                {
+                    responseTexts.TryAdd(r.Id, "");
+                }
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task SendNotification()
+    {
+        if (string.IsNullOrWhiteSpace(notifyMessage)) return;
+        isSending = true;
+        await NotifService.NotifyAllUsersAsync(notifyMessage);
+        notifySuccess = $"\"{notifyMessage}\" — tüm kullanıcılara gönderildi!";
+        notifyMessage = "";
+        isSending = false;
+    }
+
+    private async Task RespondToRequest(int requestId, AycaMusic.Models.RequestStatus status)
+    {
+        var response = responseTexts.GetValueOrDefault(requestId, "");
+        await ReqSvc.RespondToRequestAsync(requestId, status, response, adminUserId);
+        allRequests = await ReqSvc.GetAllRequestsAsync();
+        pendingCount = allRequests.Count(r => r.Status == AycaMusic.Models.RequestStatus.Pending);
+        responseTexts.Clear();
+        foreach (var r in allRequests.Where(r => r.Status == AycaMusic.Models.RequestStatus.Pending))
+        {
+            responseTexts.TryAdd(r.Id, "");
+        }
+    }
+
+    private async Task DeleteComment(int commentId)
+    {
+        await CommentSvc.DeleteCommentAsync(commentId);
+        allComments = await CommentSvc.GetAllCommentsAsync();
+    }
+
+    // ========= UPLOAD =========
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        if (string.IsNullOrWhiteSpace(uploadTitle))
+        {
+            uploadTitle = Path.GetFileNameWithoutExtension(e.File.Name);
+        }
+    }
+
+    private async Task OnUploadTrack()
+    {
+        if (selectedFile == null) { uploadMessage = "Lütfen bir MP3 dosyası seçin."; uploadSuccess = false; return; }
+        isUploading = true;
+        uploadMessage = "";
+        StateHasChanged();
+
+        var (success, message) = await UploadSvc.UploadTrackAsync(
+            selectedFile, uploadTitle, uploadArtist, uploadGenre, uploadMood, uploadGradient, adminUserId);
+
+        uploadMessage = message;
+        uploadSuccess = success;
+        isUploading = false;
+
+        if (success)
+        {
+            selectedFile = null;
+            uploadTitle = "";
+            uploadArtist = "";
+        }
+    }
+
+    private async Task OnDeleteTrack(int trackId)
+    {
+        await UploadSvc.DeleteTrackAsync(trackId);
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
+    }
+
+    private string GetStatusClass(AycaMusic.Models.RequestStatus status) => status switch
+    {
+        AycaMusic.Models.RequestStatus.Pending => "status-pending",
+        AycaMusic.Models.RequestStatus.Approved => "status-approved",
+        AycaMusic.Models.RequestStatus.Rejected => "status-rejected",
+        _ => ""
+    };
+
+    private string GetStatusText(AycaMusic.Models.RequestStatus status) => status switch
+    {
+        AycaMusic.Models.RequestStatus.Pending => "⏳ Beklemede",
+        AycaMusic.Models.RequestStatus.Approved => "✅ Onaylandı",
+        AycaMusic.Models.RequestStatus.Rejected => "❌ Reddedildi",
+        _ => ""
+    };
+
+    private string GetCatEmoji(AycaMusic.Models.RequestCategory cat) => cat switch
+    {
+        AycaMusic.Models.RequestCategory.Song => "🎵",
+        AycaMusic.Models.RequestCategory.Feature => "💡",
+        AycaMusic.Models.RequestCategory.Bug => "🐛",
+        _ => "💬"
+    };
+    private string GetCatLabel(AycaMusic.Models.RequestCategory cat) => cat switch
+    {
+        AycaMusic.Models.RequestCategory.Song => "Şarkı",
+        AycaMusic.Models.RequestCategory.Feature => "Özellik",
+        AycaMusic.Models.RequestCategory.Bug => "Hata",
+        _ => "Diğer"
+    };
+    private string GetCatColor(AycaMusic.Models.RequestCategory cat) => cat switch
+    {
+        AycaMusic.Models.RequestCategory.Song => "#7b2ff7",
+        AycaMusic.Models.RequestCategory.Feature => "#10b981",
+        AycaMusic.Models.RequestCategory.Bug => "#ef4444",
+        _ => "#f59e0b"
+    };
+
+    public void Dispose() { }
+}

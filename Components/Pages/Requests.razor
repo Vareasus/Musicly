@@ -1,0 +1,193 @@
+@page "/requests"
+@implements IDisposable
+@inject AycaMusic.Services.SongRequestService ReqSvc
+@inject AycaMusic.Services.CustomAuthStateProvider AuthState
+@inject NavigationManager Nav
+
+<section class="requests-page">
+    <div class="requests-header">
+        <h1>Talep & <span>Öneriler</span></h1>
+        <p>Şarkı talebi, özellik önerisi, hata bildirimi — her şeyi buradan ilet!</p>
+    </div>
+
+    <!-- REQUEST FORM -->
+    <div class="glass-card request-form-section">
+        <h3>📨 Yeni Talep Oluştur</h3>
+        <form @onsubmit="SubmitRequest" @onsubmit:preventDefault>
+            <!-- Category selector -->
+            <div class="request-category-row">
+                @foreach (var cat in categories)
+                {
+                    <button type="button" class="request-cat-btn @(selectedCategory == cat.Value ? "active" : "")"
+                            style="--cat-color: @cat.Color;"
+                            @onclick="() => selectedCategory = cat.Value">
+                        <span class="cat-emoji">@cat.Emoji</span>
+                        <span class="cat-name">@cat.Label</span>
+                    </button>
+                }
+            </div>
+
+            <div class="request-field">
+                <label>Başlık *</label>
+                <input type="text" @bind="title" placeholder="@GetPlaceholder()" />
+            </div>
+            <div class="request-field">
+                <label>Açıklama (opsiyonel)</label>
+                <textarea @bind="description" placeholder="Detaylı açıklama ekle..." rows="3"></textarea>
+            </div>
+            <button type="submit" class="request-submit-btn" disabled="@isSubmitting">
+                @(isSubmitting ? "Gönderiliyor..." : "📨 Talep Gönder")
+            </button>
+            @if (!string.IsNullOrEmpty(errorMsg))
+            {
+                <div class="comment-error" style="margin-top:10px;">@errorMsg</div>
+            }
+            @if (!string.IsNullOrEmpty(successMsg))
+            {
+                <div class="auth-success" style="margin-top:10px;">@successMsg</div>
+            }
+        </form>
+    </div>
+
+    <!-- MY REQUESTS -->
+    <div class="glass-card request-list-section">
+        <h3>📋 Taleplerim (@myRequests.Count)</h3>
+        @if (myRequests.Count == 0)
+        {
+            <div class="profile-empty">Henüz talep oluşturmadın</div>
+        }
+        else
+        {
+            <div class="request-cards">
+                @foreach (var r in myRequests)
+                {
+                    <div class="request-card glass-card @GetStatusClass(r.Status)">
+                        <div class="request-card-top">
+                            <div class="request-song-info">
+                                <div class="request-cat-badge" style="--cat-color: @GetCatColor(r.Category);">
+                                    @GetCatEmoji(r.Category) @GetCatLabel(r.Category)
+                                </div>
+                                <div class="request-song-title">@r.Title</div>
+                            </div>
+                            <span class="request-status-badge @GetStatusClass(r.Status)">@GetStatusText(r.Status)</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(r.Description))
+                        {
+                            <p class="request-message">@r.Description</p>
+                        }
+                        @if (!string.IsNullOrEmpty(r.AdminResponse))
+                        {
+                            <div class="request-admin-response">
+                                <span class="admin-response-label">🛡️ Admin Yanıtı:</span>
+                                <p>@r.AdminResponse</p>
+                            </div>
+                        }
+                        <div class="request-card-footer">
+                            <span class="request-time">@FormatTime(r.CreatedAt)</span>
+                            @if (r.RespondedAt.HasValue)
+                            {
+                                <span class="request-time">Yanıt: @FormatTime(r.RespondedAt.Value)</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    private List<AycaMusic.Models.SongRequest> myRequests = new();
+    private AycaMusic.Models.RequestCategory selectedCategory = AycaMusic.Models.RequestCategory.Song;
+    private string title = "";
+    private string description = "";
+    private string errorMsg = "";
+    private string successMsg = "";
+    private bool isSubmitting;
+    private int currentUserId;
+    private string currentUsername = "";
+
+    private record CategoryOption(AycaMusic.Models.RequestCategory Value, string Emoji, string Label, string Color);
+    private readonly List<CategoryOption> categories = new()
+    {
+        new(AycaMusic.Models.RequestCategory.Song, "🎵", "Şarkı Talebi", "#7b2ff7"),
+        new(AycaMusic.Models.RequestCategory.Feature, "💡", "Özellik Önerisi", "#10b981"),
+        new(AycaMusic.Models.RequestCategory.Bug, "🐛", "Hata Bildirimi", "#ef4444"),
+        new(AycaMusic.Models.RequestCategory.Other, "💬", "Diğer", "#f59e0b"),
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            currentUserId = await AuthState.GetCurrentUserIdAsync();
+            var authState = await AuthState.GetAuthenticationStateAsync();
+            currentUsername = authState.User.Identity?.Name ?? "User";
+            await LoadRequests();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadRequests()
+    {
+        myRequests = await ReqSvc.GetUserRequestsAsync(currentUserId);
+    }
+
+    private async Task SubmitRequest()
+    {
+        errorMsg = ""; successMsg = "";
+        if (string.IsNullOrWhiteSpace(title))
+        { errorMsg = "Başlık boş olamaz!"; return; }
+
+        isSubmitting = true;
+        try
+        {
+            await ReqSvc.SubmitRequestAsync(currentUserId, currentUsername, selectedCategory, title, description);
+            successMsg = "✅ Talebin gönderildi! Admin inceleyecek.";
+            title = ""; description = "";
+            await LoadRequests();
+        }
+        catch (Exception ex) { errorMsg = "Hata: " + ex.Message; }
+        isSubmitting = false;
+    }
+
+    private string GetPlaceholder() => selectedCategory switch
+    {
+        AycaMusic.Models.RequestCategory.Song => "Örn: Bohemian Rhapsody — Queen",
+        AycaMusic.Models.RequestCategory.Feature => "Örn: Karanlık tema desteği eklensin",
+        AycaMusic.Models.RequestCategory.Bug => "Örn: Şarkı geçişlerinde ses kesiliyor",
+        _ => "Talebini kısaca yaz..."
+    };
+
+    private string GetStatusClass(AycaMusic.Models.RequestStatus status) => status switch
+    {
+        AycaMusic.Models.RequestStatus.Pending => "status-pending",
+        AycaMusic.Models.RequestStatus.Approved => "status-approved",
+        AycaMusic.Models.RequestStatus.Rejected => "status-rejected",
+        _ => ""
+    };
+
+    private string GetStatusText(AycaMusic.Models.RequestStatus status) => status switch
+    {
+        AycaMusic.Models.RequestStatus.Pending => "⏳ Beklemede",
+        AycaMusic.Models.RequestStatus.Approved => "✅ Onaylandı",
+        AycaMusic.Models.RequestStatus.Rejected => "❌ Reddedildi",
+        _ => ""
+    };
+
+    private string GetCatEmoji(AycaMusic.Models.RequestCategory cat) => categories.FirstOrDefault(c => c.Value == cat)?.Emoji ?? "💬";
+    private string GetCatLabel(AycaMusic.Models.RequestCategory cat) => categories.FirstOrDefault(c => c.Value == cat)?.Label ?? "Diğer";
+    private string GetCatColor(AycaMusic.Models.RequestCategory cat) => categories.FirstOrDefault(c => c.Value == cat)?.Color ?? "#f59e0b";
+
+    private string FormatTime(DateTime dt)
+    {
+        var diff = DateTime.UtcNow - dt;
+        if (diff.TotalMinutes < 1) return "Az önce";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}dk önce";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}sa önce";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}g önce";
+        return dt.ToString("dd MMM yyyy");
+    }
+
+    public void Dispose() { }
+}

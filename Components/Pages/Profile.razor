@@ -1,0 +1,280 @@
+@page "/profile/{UserId:int}"
+@implements IDisposable
+@inject AycaMusic.Services.AuthService Auth
+@inject AycaMusic.Services.CommentService CommentSvc
+@inject AycaMusic.Services.MusicPlayerService Player
+@inject AycaMusic.Services.ListeningStatsService Stats
+@inject AycaMusic.Services.AchievementService AchieveSvc
+@inject AycaMusic.Services.CustomAuthStateProvider AuthState
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<section class="profile-page">
+    @if (isLoading)
+    {
+        <div class="glass-card" style="text-align:center;padding:60px;">
+            <div class="loading-spinner" style="margin:0 auto 16px;width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+            <p style="color:var(--text-secondary);">Profil yükleniyor...</p>
+        </div>
+    }
+    else if (profileUser == null)
+    {
+        <div class="glass-card" style="text-align:center;padding:60px;">
+            <h3>Kullanıcı bulunamadı</h3>
+            <p style="color:var(--text-secondary);">Bu profil mevcut değil.</p>
+        </div>
+    }
+    else
+    {
+        <!-- PROFILE HEADER -->
+        <div class="profile-hero glass-card">
+            <div class="profile-avatar-lg">@profileUser.Username[0].ToString().ToUpper()</div>
+            <div class="profile-info">
+                <h1 class="profile-name">@profileUser.Username</h1>
+                @if (!string.IsNullOrEmpty(listenerBadge))
+                {
+                    <span class="listener-badge">@listenerBadge</span>
+                }
+                @if (!string.IsNullOrEmpty(profileUser.Bio))
+                {
+                    <p class="profile-bio">@profileUser.Bio</p>
+                }
+                else
+                {
+                    <p class="profile-bio" style="font-style:italic;">Henüz bio eklenmemiş</p>
+                }
+                <div class="profile-meta">
+                    <span class="profile-meta-item">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>
+                        Katıldı: @profileUser.CreatedAt.ToString("dd MMM yyyy")
+                    </span>
+                    <span class="profile-meta-item role-badge @(profileUser.Role == "Admin" ? "admin" : "user")">
+                        @profileUser.Role
+                    </span>
+                </div>
+            </div>
+            <div class="profile-stats-row">
+                <div class="profile-stat-item">
+                    <span class="profile-stat-val">@totalPlays</span>
+                    <span class="profile-stat-lbl">Toplam Dinleme</span>
+                </div>
+                <div class="profile-stat-item">
+                    <span class="profile-stat-val">@likedTrackIds.Count</span>
+                    <span class="profile-stat-lbl">Favori Şarkı</span>
+                </div>
+                <div class="profile-stat-item">
+                    <span class="profile-stat-val">@userComments.Count</span>
+                    <span class="profile-stat-lbl">Yorum</span>
+                </div>
+                <div class="profile-stat-item">
+                    <span class="profile-stat-val">@totalListeningFormatted</span>
+                    <span class="profile-stat-lbl">Dinleme Süresi</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOP 5 TRACKS -->
+        <div class="glass-card profile-section">
+            <h3>🏅 Top 5 Şarkı</h3>
+            @if (topTracks.Count == 0)
+            {
+                <div class="profile-empty">Henüz dinleme verisi yok</div>
+            }
+            else
+            {
+                <div class="top-tracks-list">
+                    @for (int i = 0; i < topTracks.Count; i++)
+                    {
+                        var stat = topTracks[i];
+                        var track = Player.Tracks.FirstOrDefault(t => t.Id == stat.TrackId);
+                        if (track != null)
+                        {
+                            var rank = i + 1;
+                            <div class="top-track-item" @onclick="() => PlayTrack(track.Id)">
+                                <span class="top-rank @(rank <= 3 ? $"top{rank}" : "")">@rank</span>
+                                <div class="profile-track-art" style="background: @track.GradientColor; background-size: 300% 300%;">
+                                    @if (!string.IsNullOrEmpty(track.CoverImage))
+                                    {
+                                        <img src="@track.CoverImage" alt="@track.Title" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" />
+                                    }
+                                </div>
+                                <div class="profile-track-info">
+                                    <div class="profile-track-title">@track.Title</div>
+                                    <div class="profile-track-artist">@track.Artist • @stat.PlayCount play • @Stats.FormatSeconds(stat.TotalListeningSeconds)</div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- ACHIEVEMENTS -->
+        <div class="glass-card profile-section">
+            <h3>🏆 Başarımlar</h3>
+            <div class="achievements-grid">
+                @foreach (var a in achievements)
+                {
+                    <div class="achievement-card @(a.Unlocked ? "unlocked" : "locked")">
+                        <span class="achievement-emoji">@a.Emoji</span>
+                        <div class="achievement-info">
+                            <div class="achievement-title">@a.Title</div>
+                            <div class="achievement-desc">@a.Description</div>
+                        </div>
+                        @if (a.Unlocked)
+                        {
+                            <span class="achievement-check">✓</span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- FAVORITES -->
+        <div class="glass-card profile-section">
+            <h3>❤️ Favori Şarkılar</h3>
+            @if (likedTrackIds.Count == 0)
+            {
+                <div class="profile-empty">Henüz favori şarkı yok</div>
+            }
+            else
+            {
+                <div class="profile-track-list">
+                    @foreach (var trackId in likedTrackIds)
+                    {
+                        var track = Player.Tracks.FirstOrDefault(t => t.Id == trackId);
+                        if (track != null)
+                        {
+                            <div class="profile-track-item" @onclick="() => PlayTrack(trackId)">
+                                <div class="profile-track-art" style="background: @track.GradientColor; background-size: 300% 300%;">
+                                    @if (!string.IsNullOrEmpty(track.CoverImage))
+                                    {
+                                        <img src="@track.CoverImage" alt="@track.Title" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" />
+                                    }
+                                    else
+                                    {
+                                        @((MarkupString)track.IconSvg)
+                                    }
+                                </div>
+                                <div class="profile-track-info">
+                                    <div class="profile-track-title">@track.Title</div>
+                                    <div class="profile-track-artist">@track.Artist</div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- COMMENTS -->
+        <div class="glass-card profile-section">
+            <h3>💬 Yorumlar</h3>
+            @if (userComments.Count == 0)
+            {
+                <div class="profile-empty">Henüz yorum yapılmamış</div>
+            }
+            else
+            {
+                <div class="my-comments-list">
+                    @foreach (var c in userComments)
+                    {
+                        <div class="my-comment-card glass-card">
+                            <div class="my-comment-top">
+                                <div class="my-comment-track">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="var(--accent)"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                                    <span>@c.TrackTitle</span>
+                                </div>
+                                <div class="my-comment-stars">
+                                    @for (int s = 1; s <= 5; s++)
+                                    {
+                                        <span class="star-sm @(s <= c.Rating ? "filled" : "")">★</span>
+                                    }
+                                </div>
+                            </div>
+                            <p class="my-comment-text">@c.Text</p>
+                            <div class="my-comment-bottom">
+                                <span class="my-comment-time">@FormatTime(c.CreatedAt)</span>
+                                <div class="my-comment-likes">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                        <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 2 7.59 8.59C7.22 8.95 7 9.45 7 10v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/>
+                                    </svg>
+                                    <span>@c.LikeCount beğeni</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter] public int UserId { get; set; }
+
+    private AppUser? profileUser;
+    private List<CommentWithLikes> userComments = new();
+    private List<int> likedTrackIds = new();
+    private List<AycaMusic.Models.UserTrackStats> topTracks = new();
+    private List<AycaMusic.Services.Achievement> achievements = new();
+    private string listenerBadge = "";
+    private int totalPlays;
+    private string totalListeningFormatted = "0m 0s";
+    private bool isLoading = true;
+    private int _loadedUserId = -1;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (UserId == _loadedUserId) return;
+        _loadedUserId = UserId;
+        isLoading = true;
+        await LoadProfile();
+        isLoading = false;
+    }
+
+    private async Task LoadProfile()
+    {
+        try
+        {
+            profileUser = await Auth.GetUserAsync(UserId);
+            if (profileUser == null) return;
+
+            userComments = await CommentSvc.GetUserCommentsAsync(UserId);
+            likedTrackIds = await CommentSvc.GetLikedTrackIdsForUserAsync(UserId);
+            totalPlays = await Stats.GetTotalPlaysForUserAsync(UserId);
+            var totalSecs = await Stats.GetTotalListeningForUserAsync(UserId);
+            totalListeningFormatted = Stats.FormatSeconds(totalSecs);
+            topTracks = await Stats.GetTopTracksForUserAsync(UserId, 5);
+            achievements = await AchieveSvc.GetAchievementsAsync(UserId);
+            listenerBadge = AchieveSvc.GetListenerBadge(totalSecs);
+        }
+        catch
+        {
+            profileUser = null;
+        }
+    }
+
+    private async Task PlayTrack(int trackId)
+    {
+        var idx = Player.Tracks.FindIndex(t => t.Id == trackId);
+        if (idx >= 0)
+        {
+            Player.LoadTrack(idx);
+            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+            await JS.InvokeVoidAsync("audioInterop.play");
+        }
+    }
+
+    private string FormatTime(DateTime dt)
+    {
+        var diff = DateTime.UtcNow - dt;
+        if (diff.TotalMinutes < 1) return "Az önce";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}dk önce";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}sa önce";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}g önce";
+        return dt.ToString("dd MMM yyyy");
+    }
+
+    public void Dispose() { }
+}

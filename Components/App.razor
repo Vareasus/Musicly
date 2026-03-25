@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Musicly — Music App</title>
+    <meta name="description" content="Musicly - A premium music experience with flowing lyrics." />
+    <base href="/" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/app.css" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+<body>
+    <div class="orb orb-1"></div>   
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+
+    <Routes @rendermode="InteractiveServer" />
+
+    <script src="_framework/blazor.web.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="js/audioInterop.js"></script>
+    <script src="js/statsCharts.js"></script>
+</body>
+</html>

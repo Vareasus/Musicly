@@ -1,0 +1,767 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject AycaMusic.Services.MusicPlayerService Player
+@inject AycaMusic.Services.ListeningStatsService Stats
+@inject AycaMusic.Services.CustomAuthStateProvider AuthState
+@inject AycaMusic.Services.NotificationService NotifService
+@inject AycaMusic.Services.CommentService CommentSvc
+@inject AycaMusic.Services.SongRequestService ReqSvc
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@if (!isAuthenticated)
+{
+    <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
+        <p style="color:var(--text-secondary);">Loading...</p>
+    </div>
+}
+else
+{
+<div class="app-container">
+    <!-- HEADER -->
+    <header class="app-header">
+        <div class="logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            </div>
+            <div>
+                <div class="logo-text">Musicly</div>
+                <div class="logo-tagline">Your Music, Your Soul</div>
+            </div>
+        </div>
+        <button class="hamburger-btn" @onclick="ToggleMobileNav" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
+        @if (showMobileNav)
+        {
+            <div class="mobile-nav-overlay" @onclick="ToggleMobileNav"></div>
+        }
+        <ul class="nav-links @(showMobileNav ? "mobile-open" : "")">
+            <li><NavLink href="/" Match="NavLinkMatch.All" @onclick="CloseMobileNav">Home</NavLink></li>
+            <li><NavLink href="/explore" @onclick="CloseMobileNav">Explore</NavLink></li>
+            <li><NavLink href="/stats" @onclick="CloseMobileNav">Stats</NavLink></li>
+            <li><NavLink href="/favorites" @onclick="CloseMobileNav">Favorites</NavLink></li>
+            <li><NavLink href="/radio" @onclick="CloseMobileNav">Radio</NavLink></li>
+            <li><NavLink href="/requests" @onclick="CloseMobileNav">Requests</NavLink></li>
+            @if (isAdmin)
+            {
+                <li class="admin-nav-item">
+                    <NavLink href="/admin" @onclick="CloseMobileNav">Admin</NavLink>
+                    @if (pendingRequestCount > 0)
+                    {
+                        <span class="admin-nav-badge">@pendingRequestCount</span>
+                    }
+                </li>
+            }
+        </ul>
+        <div class="header-right">
+            <!-- THEME SWITCHER -->
+            <div class="theme-switcher">
+                <button class="theme-btn" @onclick="ToggleThemePanel" title="Tema">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm0-10c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4z"/></svg>
+                </button>
+                @if (showThemePanel)
+                {
+                    <div class="theme-dropdown">
+                        <div class="theme-section"><span class="theme-lbl">Tema</span>
+                            <div class="theme-options">
+                                <button class="@GetThemeClass("dark")" @onclick="SetThemeDark">🌙 Dark</button>
+                                <button class="@GetThemeClass("amoled")" @onclick="SetThemeAmoled">⚫ AMOLED</button>
+                                <button class="@GetThemeClass("light")" @onclick="SetThemeLight">☀️ Light</button>
+                            </div>
+                        </div>
+                        <div class="theme-section"><span class="theme-lbl">Accent</span>
+                            <div class="accent-options">
+                                <button class="accent-dot pink @GetAccentClass("pink")" @onclick="SetAccentPink"></button>
+                                <button class="accent-dot blue @GetAccentClass("blue")" @onclick="SetAccentBlue"></button>
+                                <button class="accent-dot green @GetAccentClass("green")" @onclick="SetAccentGreen"></button>
+                                <button class="accent-dot orange @GetAccentClass("orange")" @onclick="SetAccentOrange"></button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <!-- NOTIFICATIONS -->
+            <div class="notif-container">
+                <button class="notif-bell" @onclick="ToggleNotifPanel">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+                    @if (unreadCount > 0)
+                    {
+                        <span class="notif-badge">@unreadCount</span>
+                    }
+                </button>
+                @if (showNotifPanel)
+                {
+                    <div class="notif-panel">
+                        <div class="notif-panel-header">
+                            <h4>Notifications</h4>
+                            @if (unreadCount > 0)
+                            {
+                                <button class="notif-mark-all" @onclick="MarkAllRead">Mark all read</button>
+                            }
+                        </div>
+                        @if (notifications.Count == 0)
+                        {
+                            <div class="notif-empty">No notifications yet</div>
+                        }
+                        else
+                        {
+                            @foreach (var n in notifications)
+                            {
+                                <div class="notif-item @(n.IsRead ? "" : "unread")">
+                                    <div class="notif-msg">@n.Message</div>
+                                    <div class="notif-time">@FormatNotifTime(n.CreatedAt)</div>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+            </div>
+            <!-- USER -->
+            <div class="user-info">
+                <span class="user-name">@currentUsername</span>
+                <button class="logout-btn" @onclick="OnLogout">Logout</button>
+            </div>
+            <div class="eq-bars @(Player.IsPlaying ? "" : "paused")">
+                <div class="eq-bar"></div>
+                <div class="eq-bar"></div>
+                <div class="eq-bar"></div>
+                <div class="eq-bar"></div>
+                <div class="eq-bar"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- PAGE CONTENT -->
+    @Body
+
+    <!-- BOTTOM PLAYER -->
+    <div class="bottom-player">
+        <!-- SEEK BAR - full width on top -->
+        <div class="bottom-seek-row">
+            <span class="bp-time">@FormatTime(Player.CurrentTime)</span>
+            <div id="bottomSeekBar" class="seek-container">
+                <div class="seek-fill" style="width: @GetProgressPercent()%;"></div>
+                <div class="seek-thumb" style="left: @GetProgressPercent()%;"></div>
+            </div>
+            <span class="bp-time">@FormatTime(Player.Duration)</span>
+        </div>
+        <!-- MAIN ROW -->
+        <div class="bottom-player-row">
+            <div class="bottom-player-left">
+                <div class="bottom-mini-art" style="background: @Player.CurrentTrack.GradientColor; background-size: 300% 300%;">
+                    @if (!string.IsNullOrEmpty(Player.CurrentTrack.CoverImage))
+                    {
+                        <img src="@Player.CurrentTrack.CoverImage" alt="@Player.CurrentTrack.Title" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" />
+                    }
+                    else
+                    {
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="rgba(255,255,255,0.7)"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                    }
+                </div>
+                <div class="bottom-song-info">
+                    <div class="bottom-title">@Player.CurrentTrack.Title</div>
+                    <div class="bottom-artist">@Player.CurrentTrack.Artist</div>
+                </div>
+                <div class="bottom-like-btns">
+                    <button class="like-btn @(currentTrackLiked ? "liked" : "")"
+                            title="Like" @onclick="OnLikeToggle">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                    </button>
+                    <button class="dislike-btn @(currentTrackDisliked ? "disliked" : "")"
+                            title="Dislike" @onclick="OnDislikeToggle">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/>
+                        </svg>
+                    </button>
+                </div>
+                <button class="comment-toggle-btn" title="Yorumlar" @onclick="ToggleComments">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                        <path d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18z"/>
+                    </svg>
+                    <span>Yorumlar</span>
+                </button>
+            </div>
+            <div class="bottom-player-center">
+                <div class="bottom-controls">
+                    <button class="bottom-ctrl-btn @(Player.IsShuffled ? "active" : "")" title="Shuffle" @onclick="OnShuffle">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+                    </button>
+                    <button class="bottom-ctrl-btn" @onclick="OnPrev">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                    </button>
+                    <button class="bottom-play-btn" @onclick="OnTogglePlay">
+                        @if (Player.IsPlaying)
+                        {
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        }
+                    </button>
+                    <button class="bottom-ctrl-btn" @onclick="OnNext">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                    </button>
+                    <button class="bottom-ctrl-btn @GetRepeatClass()" title="Repeat (@Player.Repeat)" @onclick="OnRepeat">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="bottom-player-right">
+                <button class="bp-icon-btn" title="Sıradaki" @onclick="() => Player.ToggleQueue()">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"/></svg>
+                    @if (Player.Queue.Count > 0) { <span class="bp-badge">@Player.Queue.Count</span> }
+                </button>
+                <button class="bp-icon-btn @(sleepEndTime.HasValue ? "active" : "")" title="Uyku Zamanlayıcı" @onclick="ToggleSleepModal">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.34 2.02C6.59 1.82 2 6.42 2 12c0 5.52 4.48 10 10 10 3.71 0 6.93-2.02 8.66-5.02-7.51-.25-12.09-8.43-8.32-14.96z"/></svg>
+                    @if (sleepEndTime.HasValue) { <span class="bp-badge">@GetSleepRemaining()</span> }
+                </button>
+                <button class="bp-icon-btn" title="Ekolayzer" @onclick="ToggleEqPanel">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z"/></svg>
+                </button>
+                <button class="bp-icon-btn" title="İndir" @onclick="OnDownloadTrack">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                </button>
+                <div class="volume-container">
+                    <span class="vol-icon @(Player.IsMuted ? "muted" : "")" @onclick="OnMuteToggle" title="@(Player.IsMuted ? "Unmute (M)" : "Mute (M)")">
+                        @if (Player.IsMuted)
+                        {
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                        }
+                    </span>
+                    <div class="volume-bar" id="volumeBarEl">
+                        <div class="volume-fill" id="volumeFillEl" style="width: 70%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Comment Panel *@
+    <TrackComments IsOpen="showComments" OnClose="() => showComments = false" />
+
+    @* Queue Panel *@
+    <QueuePanel />
+
+    @* Sleep Timer Modal *@
+    @if (showSleepModal)
+    {
+        <div class="modal-overlay" @onclick="ToggleSleepModal">
+            <div class="modal-card" @onclick:stopPropagation="true">
+                <h3>🌙 Uyku Zamanlayıcı</h3>
+                <div class="sleep-options">
+                    <button @onclick="() => SetSleep(15)">15 dk</button>
+                    <button @onclick="() => SetSleep(30)">30 dk</button>
+                    <button @onclick="() => SetSleep(45)">45 dk</button>
+                    <button @onclick="() => SetSleep(60)">1 saat</button>
+                </div>
+                @if (sleepEndTime.HasValue)
+                {
+                    <div class="sleep-active">
+                        <span>⏱ @GetSleepRemaining() kaldı</span>
+                        <button class="sleep-cancel" @onclick="CancelSleep">İptal</button>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @* Keyboard Shortcuts Modal *@
+    @if (showShortcutsModal)
+    {
+        <div class="modal-overlay" @onclick="() => showShortcutsModal = false">
+            <div class="modal-card shortcuts-modal" @onclick:stopPropagation="true">
+                <h3>⌨️ Klavye Kısayolları</h3>
+                <div class="shortcut-list">
+                    <div class="shortcut-row"><kbd>Space</kbd><span>Çal / Duraklat</span></div>
+                    <div class="shortcut-row"><kbd>N</kbd><span>Sonraki şarkı</span></div>
+                    <div class="shortcut-row"><kbd>P</kbd><span>Önceki şarkı</span></div>
+                    <div class="shortcut-row"><kbd>M</kbd><span>Sessiz / Sesli</span></div>
+                    <div class="shortcut-row"><kbd>S</kbd><span>Karıştır</span></div>
+                    <div class="shortcut-row"><kbd>R</kbd><span>Tekrar modu</span></div>
+                    <div class="shortcut-row"><kbd>L</kbd><span>Beğen</span></div>
+                    <div class="shortcut-row"><kbd>Q</kbd><span>Sıraya ekle</span></div>
+                    <div class="shortcut-row"><kbd>↑</kbd><span>Ses aç</span></div>
+                    <div class="shortcut-row"><kbd>↓</kbd><span>Ses kıs</span></div>
+                    <div class="shortcut-row"><kbd>←</kbd><span>Geri sar</span></div>
+                    <div class="shortcut-row"><kbd>→</kbd><span>İleri sar</span></div>
+                    <div class="shortcut-row"><kbd>?</kbd><span>Bu pencere</span></div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* EQ Panel *@
+    @if (showEqPanel)
+    {
+        <div class="modal-overlay" @onclick="ToggleEqPanel">
+            <div class="modal-card eq-modal" @onclick:stopPropagation="true">
+                <h3>🎛️ Ekolayzer</h3>
+                <div class="eq-sliders">
+                    <div class="eq-slider-group">
+                        <label>Bass</label>
+                        <input type="range" min="-12" max="12" value="@eqBass" @onchange="SetEqBass" />
+                        <span>@eqBass dB</span>
+                    </div>
+                    <div class="eq-slider-group">
+                        <label>Mid</label>
+                        <input type="range" min="-12" max="12" value="@eqMid" @onchange="SetEqMid" />
+                        <span>@eqMid dB</span>
+                    </div>
+                    <div class="eq-slider-group">
+                        <label>Treble</label>
+                        <input type="range" min="-12" max="12" value="@eqTreble" @onchange="SetEqTreble" />
+                        <span>@eqTreble dB</span>
+                    </div>
+                </div>
+                <div class="eq-presets">
+                    <button @onclick="() => SetEqPreset(0,0,0)">Flat</button>
+                    <button @onclick="() => SetEqPreset(6,2,4)">Pop</button>
+                    <button @onclick="() => SetEqPreset(8,0,-2)">Bass Boost</button>
+                    <button @onclick="() => SetEqPreset(4,2,6)">Rock</button>
+                    <button @onclick="() => SetEqPreset(-2,0,6)">Jazz</button>
+                    <button @onclick="() => SetEqPreset(2,4,6)">Classical</button>
+                </div>
+                <div class="crossfade-section">
+                    <h4>🔀 Crossfade</h4>
+                    <div class="crossfade-row">
+                        <span>@(Player.CrossfadeDuration == 0 ? "Kapalı" : $"{Player.CrossfadeDuration} sn")</span>
+                        <input type="range" min="0" max="5" value="@Player.CrossfadeDuration" @onchange="SetCrossfade" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+}
+
+@code {
+    private DotNetObjectReference<MainLayout>? dotNetRef;
+    private int _flushCounter;
+    private bool isAuthenticated;
+    private bool isAdmin;
+    private string currentUsername = "";
+    private int currentUserId;
+    private bool currentTrackLiked;
+    private bool currentTrackDisliked;
+
+    // Notifications
+    private bool showNotifPanel;
+    private int unreadCount;
+    private List<AycaMusic.Models.Notification> notifications = new();
+
+    // Comments
+    private bool showComments;
+
+    // Admin pending requests
+    private int pendingRequestCount;
+
+    // Sleep Timer
+    private bool showSleepModal;
+    private DateTime? sleepEndTime;
+    private System.Threading.Timer? sleepTimer;
+
+    // Keyboard Shortcuts
+    private bool showShortcutsModal;
+
+    // Theme
+    private bool showThemePanel;
+    private bool showMobileNav;
+    private string currentTheme = "dark";
+    private string currentAccent = "pink";
+
+    // Equalizer
+    private bool showEqPanel;
+    private int eqBass = 0;
+    private int eqMid = 0;
+    private int eqTreble = 0;
+
+    private bool _jsInitDone = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Check auth
+            currentUserId = await AuthState.GetCurrentUserIdAsync();
+            if (currentUserId <= 0)
+            {
+                Nav.NavigateTo("/login", forceLoad: true);
+                return;
+            }
+
+            var authStateResult = await AuthState.GetAuthenticationStateAsync();
+            var claims = authStateResult.User;
+            currentUsername = claims.Identity?.Name ?? "";
+            isAdmin = claims.IsInRole("Admin");
+            isAuthenticated = true;
+
+            if (isAdmin)
+            {
+                try { pendingRequestCount = await ReqSvc.GetPendingCountAsync(); } catch { }
+            }
+
+            Stats.SetCurrentUser(currentUserId);
+            await Player.LoadTracksFromDbAsync();
+            await RefreshLikeState();
+            await RefreshNotifications();
+
+            dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("audioInterop.init", dotNetRef);
+            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+            await JS.InvokeVoidAsync("audioInterop.initEq");
+
+            // Restore theme from localStorage
+            currentTheme = await JS.InvokeAsync<string>("audioInterop.getTheme") ?? "dark";
+            currentAccent = await JS.InvokeAsync<string>("audioInterop.getAccent") ?? "pink";
+            Player.OnStateChanged += StateChanged;
+
+            StateHasChanged();
+            // NOTE: initSeekBar / initVolumeBar are called on the NEXT render below,
+            // because #bottomSeekBar is only in the DOM after StateHasChanged() re-renders.
+        }
+
+        // Initialize seek + volume bars after the authenticated UI is actually in the DOM
+        if (isAuthenticated && !_jsInitDone)
+        {
+            _jsInitDone = true;
+            await JS.InvokeVoidAsync("initSeekBar", "bottomSeekBar");
+            await JS.InvokeVoidAsync("initVolumeBar", "volumeBarEl", "volumeFillEl");
+        }
+    }
+
+    private void StateChanged()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            await RefreshLikeState();
+            StateHasChanged();
+        });
+    }
+
+    private async Task RefreshLikeState()
+    {
+        try
+        {
+            currentTrackLiked = await Stats.IsLikedAsync(Player.CurrentTrack.Id);
+            currentTrackDisliked = await Stats.IsDislikedAsync(Player.CurrentTrack.Id);
+        }
+        catch { }
+    }
+
+    private async Task RefreshNotifications()
+    {
+        try
+        {
+            unreadCount = await NotifService.GetUnreadCountAsync(currentUserId);
+            notifications = await NotifService.GetUserNotificationsAsync(currentUserId);
+        }
+        catch { }
+    }
+
+    private void ToggleNotifPanel()
+    {
+        showNotifPanel = !showNotifPanel;
+    }
+
+    private void ToggleComments()
+    {
+        showComments = !showComments;
+    }
+
+    private async Task MarkAllRead()
+    {
+        await NotifService.MarkAllAsReadAsync(currentUserId);
+        await RefreshNotifications();
+    }
+
+    [JSInvokable]
+    public async Task OnTimeUpdate(double time)
+    {
+        Player.UpdateTime(time, Player.Duration);
+        if (Player.IsPlaying)
+        {
+            Stats.RecordTimeSlice();
+            _flushCounter++;
+            if (_flushCounter >= 30)
+            {
+                _flushCounter = 0;
+                await Stats.FlushAsync();
+            }
+        }
+    }
+
+    [JSInvokable]
+    public void OnDurationChanged(double duration)
+    {
+        Player.Duration = duration;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnPlayStateChanged(bool playing)
+    {
+        if (playing && !Player.IsPlaying)
+            await Stats.TrackStartedAsync(Player.CurrentTrack);
+        Player.SetPlaying(playing);
+    }
+
+    [JSInvokable]
+    public async Task OnTrackEnded()
+    {
+        var nextIdx = Player.GetNextTrackIndex();
+        if (nextIdx >= 0)
+        {
+            Player.LoadTrack(nextIdx);
+            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+            await JS.InvokeVoidAsync("audioInterop.play");
+        }
+        else
+        {
+            Player.SetPlaying(false);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnMuteToggle()
+    {
+        Player.ToggleMute();
+        if (Player.IsMuted)
+            await JS.InvokeVoidAsync("audioInterop.mute");
+        else
+            await JS.InvokeVoidAsync("audioInterop.unmute");
+    }
+
+    private async Task OnLikeToggle()
+    {
+        await Stats.ToggleLikeAsync(Player.CurrentTrack.Id);
+        await RefreshLikeState();
+    }
+
+    private async Task OnDislikeToggle()
+    {
+        await Stats.ToggleDislikeAsync(Player.CurrentTrack.Id);
+        await RefreshLikeState();
+    }
+
+    private async Task OnTogglePlay()
+    {
+        await JS.InvokeVoidAsync("audioInterop.togglePlay");
+    }
+
+    private async Task OnPrev()
+    {
+        Player.PrevTrack();
+        await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+        if (Player.IsPlaying)
+            await JS.InvokeVoidAsync("audioInterop.play");
+    }
+
+    private async Task OnNext()
+    {
+        Player.NextTrack();
+        await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+        if (Player.IsPlaying)
+            await JS.InvokeVoidAsync("audioInterop.play");
+    }
+
+    private void OnShuffle() => Player.ToggleShuffle();
+    private void OnRepeat() => Player.CycleRepeat();
+
+    private async Task OnLogout()
+    {
+        await AuthState.LogoutAsync();
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+
+    private string GetRepeatClass()
+    {
+        return Player.Repeat switch
+        {
+            RepeatMode.All => "active",
+            RepeatMode.One => "active repeat-one",
+            _ => ""
+        };
+    }
+
+    private string FormatTime(double seconds)
+    {
+        if (double.IsNaN(seconds) || seconds < 0) return "0:00";
+        var m = (int)(seconds / 60);
+        var s = (int)(seconds % 60);
+        return $"{m}:{s:D2}";
+    }
+
+    private string GetProgressPercent()
+    {
+        if (Player.Duration <= 0) return "0";
+        var pct = Math.Min(100, (Player.CurrentTime / Player.Duration) * 100);
+        return pct.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private async Task OnSeekClick(MouseEventArgs e)
+    {
+        // This is handled by JS for more precise seeking
+        // but we need this for Blazor event binding
+    }
+
+    private string FormatNotifTime(DateTime dt)
+    {
+        var diff = DateTime.UtcNow - dt;
+        if (diff.TotalMinutes < 1) return "Just now";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        return dt.ToString("dd MMM");
+    }
+
+    // ========= SLEEP TIMER =========
+    private void ToggleSleepModal() => showSleepModal = !showSleepModal;
+
+    private void SetSleep(int minutes)
+    {
+        sleepEndTime = DateTime.UtcNow.AddMinutes(minutes);
+        sleepTimer?.Dispose();
+        sleepTimer = new System.Threading.Timer(async _ =>
+        {
+            if (sleepEndTime.HasValue && DateTime.UtcNow >= sleepEndTime.Value)
+            {
+                await InvokeAsync(async () =>
+                {
+                    await JS.InvokeVoidAsync("audioInterop.pause");
+                    Player.SetPlaying(false);
+                    sleepEndTime = null;
+                    sleepTimer?.Dispose();
+                    StateHasChanged();
+                });
+            }
+            else
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }, null, 1000, 1000);
+        showSleepModal = false;
+    }
+
+    private void CancelSleep()
+    {
+        sleepEndTime = null;
+        sleepTimer?.Dispose();
+        showSleepModal = false;
+    }
+
+    private string GetSleepRemaining()
+    {
+        if (!sleepEndTime.HasValue) return "";
+        var remaining = sleepEndTime.Value - DateTime.UtcNow;
+        if (remaining.TotalSeconds <= 0) return "0:00";
+        return $"{(int)remaining.TotalMinutes}:{remaining.Seconds:D2}";
+    }
+
+    // ========= THEME =========
+    private void ToggleThemePanel() => showThemePanel = !showThemePanel;
+    private void ToggleMobileNav() => showMobileNav = !showMobileNav;
+    private void CloseMobileNav() => showMobileNav = false;
+    private string GetThemeClass(string theme) => currentTheme == theme ? "active" : "";
+    private string GetAccentClass(string accent) => currentAccent == accent ? "active" : "";
+
+    private async Task SetTheme(string theme)
+    {
+        currentTheme = theme;
+        await JS.InvokeVoidAsync("audioInterop.setTheme", theme);
+        showThemePanel = false;
+    }
+
+    private Task SetThemeDark() => SetTheme("dark");
+    private Task SetThemeAmoled() => SetTheme("amoled");
+    private Task SetThemeLight() => SetTheme("light");
+
+    private async Task SetAccent(string accent)
+    {
+        currentAccent = accent;
+        await JS.InvokeVoidAsync("audioInterop.setAccent", accent);
+        showThemePanel = false;
+    }
+
+    private Task SetAccentPink() => SetAccent("pink");
+    private Task SetAccentBlue() => SetAccent("blue");
+    private Task SetAccentGreen() => SetAccent("green");
+    private Task SetAccentOrange() => SetAccent("orange");
+
+    // ========= EQUALIZER =========
+    private void ToggleEqPanel() => showEqPanel = !showEqPanel;
+
+    private async Task SetEqBand(string band, ChangeEventArgs e)
+    {
+        var val = int.Parse(e.Value?.ToString() ?? "0");
+        switch (band)
+        {
+            case "bass": eqBass = val; break;
+            case "mid": eqMid = val; break;
+            case "treble": eqTreble = val; break;
+        }
+        await JS.InvokeVoidAsync("audioInterop.setEq", eqBass, eqMid, eqTreble);
+    }
+
+    private Task SetEqBass(ChangeEventArgs e) => SetEqBand("bass", e);
+    private Task SetEqMid(ChangeEventArgs e) => SetEqBand("mid", e);
+    private Task SetEqTreble(ChangeEventArgs e) => SetEqBand("treble", e);
+
+    private async Task SetEqPreset(int bass, int mid, int treble)
+    {
+        eqBass = bass; eqMid = mid; eqTreble = treble;
+        await JS.InvokeVoidAsync("audioInterop.setEq", bass, mid, treble);
+    }
+
+    // ========= CROSSFADE =========
+    private async Task SetCrossfade(ChangeEventArgs e)
+    {
+        Player.CrossfadeDuration = int.Parse(e.Value?.ToString() ?? "0");
+        await JS.InvokeVoidAsync("audioInterop.setCrossfade", Player.CrossfadeDuration);
+    }
+
+    // ========= DOWNLOAD =========
+    private async Task OnDownloadTrack()
+    {
+        var track = Player.CurrentTrack;
+        if (!string.IsNullOrEmpty(track.Src))
+        {
+            var filename = $"{track.Artist} - {track.Title}";
+            await JS.InvokeVoidAsync("audioInterop.downloadTrack", track.Src, filename);
+        }
+    }
+
+    // ========= KEYBOARD SHORTCUTS =========
+    [JSInvokable]
+    public void OnShowShortcuts() => _ = InvokeAsync(() => { showShortcutsModal = true; StateHasChanged(); });
+
+    [JSInvokable]
+    public async Task OnKeyboardAction(string action)
+    {
+        switch (action)
+        {
+            case "togglePlay": await OnTogglePlay(); break;
+            case "next": await OnNext(); break;
+            case "prev": await OnPrev(); break;
+            case "shuffle": OnShuffle(); break;
+            case "repeat": OnRepeat(); break;
+            case "like": await OnLikeToggle(); break;
+            case "queue": Player.AddToQueue(Player.CurrentTrack); break;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Player.OnStateChanged -= StateChanged;
+        sleepTimer?.Dispose();
+        _ = JS.InvokeVoidAsync("audioInterop.dispose");
+        dotNetRef?.Dispose();
+    }
+}

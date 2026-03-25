@@ -1,0 +1,215 @@
+@page "/stats"
+@implements IDisposable
+@inject AycaMusic.Services.ListeningStatsService StatsService
+@inject AycaMusic.Services.CommentService CommentSvc
+@inject AycaMusic.Services.MusicPlayerService Player
+@inject AycaMusic.Services.CustomAuthStateProvider AuthState
+@inject IJSRuntime JS
+
+<section class="stats-page">
+    <div class="stats-header">
+        <h1>Your <span>Listening</span> Stats</h1>
+        <p>See how you've been vibing</p>
+    </div>
+
+    <!-- OVERVIEW CARDS -->
+    <div class="stats-overview">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #e94590, #7b2ff7);">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="#fff"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            </div>
+            <div class="stat-value">@totalPlays</div>
+            <div class="stat-label">Total Plays</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="#fff"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+            </div>
+            <div class="stat-value">@totalListeningFormatted</div>
+            <div class="stat-label">Total Listening Time</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="#fff"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>
+            </div>
+            <div class="stat-value">@GetMostPlayedTitle()</div>
+            <div class="stat-label">Most Played Song</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="#fff"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+            </div>
+            <div class="stat-value">@likedCount ❤️</div>
+            <div class="stat-label">Liked Songs</div>
+        </div>
+    </div>
+
+    <!-- DETAIL TABLE -->
+    <div class="glass-card stats-table-card">
+        <h3>Track Details</h3>
+        <div class="stats-table-wrapper">
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Song</th>
+                        <th>Plays</th>
+                        <th>Time Listened</th>
+                        <th>Last Played</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (allStats.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="5" style="text-align:center; color: var(--text-secondary); padding: 40px;">
+                                No listening data yet. Play some music first! 🎵
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @for (int i = 0; i < allStats.Count; i++)
+                        {
+                            var stat = allStats[i];
+                            var track = Player.Tracks.FirstOrDefault(t => t.Id == stat.TrackId);
+                            <tr>
+                                <td class="rank">@(i + 1)</td>
+                                <td class="song-cell">
+                                    <div class="mini-art" style="background: @(track?.GradientColor ?? "var(--bg-glass)");"></div>
+                                    @(track?.Title ?? $"Track #{stat.TrackId}")
+                                </td>
+                                <td class="plays-cell">@stat.PlayCount</td>
+                                <td>@StatsService.FormatSeconds(stat.TotalListeningSeconds)</td>
+                                <td class="date-cell">@(stat.LastPlayed == default ? "—" : stat.LastPlayed.ToString("HH:mm, dd MMM"))</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MY COMMENTS -->
+    <div class="glass-card stats-table-card" style="margin-top: 24px;">
+        <h3>💬 Yorumlarım (@myComments.Count)</h3>
+        @if (myComments.Count == 0)
+        {
+            <div style="text-align:center; color: var(--text-secondary); padding: 40px;">
+                Henüz yorum yapmadın. Bir şarkıyı dinlerken yorum bırak! 🎶
+            </div>
+        }
+        else
+        {
+            <div class="my-comments-list">
+                @foreach (var c in myComments)
+                {
+                    <div class="my-comment-card glass-card" @onclick="() => OpenTrackComments(c.TrackId)">
+                        <div class="my-comment-top">
+                            <div class="my-comment-track">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="var(--accent)"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                                <span>@c.TrackTitle</span>
+                            </div>
+                            <div class="my-comment-stars">
+                                @for (int s = 1; s <= 5; s++)
+                                {
+                                    <span class="star-sm @(s <= c.Rating ? "filled" : "")">★</span>
+                                }
+                            </div>
+                        </div>
+                        <p class="my-comment-text">@c.Text</p>
+                        <div class="my-comment-bottom">
+                            <span class="my-comment-time">@FormatTime(c.CreatedAt)</span>
+                            <div class="my-comment-likes">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                    <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 2 7.59 8.59C7.22 8.95 7 9.45 7 10v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/>
+                                </svg>
+                                <span>@c.LikeCount beğeni</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    private List<AycaMusic.Models.UserTrackStats> allStats = new();
+    private int totalPlays;
+    private string totalListeningFormatted = "0m 0s";
+    private AycaMusic.Models.UserTrackStats? mostPlayed;
+    private int likedCount;
+    private List<CommentWithLikes> myComments = new();
+    private int currentUserId;
+
+    protected override void OnInitialized()
+    {
+        StatsService.OnStatsChanged += OnStatsChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            currentUserId = await AuthState.GetCurrentUserIdAsync();
+            await LoadStats();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadStats()
+    {
+        allStats = await StatsService.GetAllStatsAsync();
+        totalPlays = await StatsService.GetTotalPlaysAsync();
+        var totalSecs = await StatsService.GetTotalListeningSecondsAsync();
+        totalListeningFormatted = StatsService.FormatSeconds(totalSecs);
+        mostPlayed = await StatsService.GetMostPlayedAsync();
+        likedCount = await StatsService.GetLikedCountAsync();
+
+        if (currentUserId > 0)
+            myComments = await CommentSvc.GetUserCommentsAsync(currentUserId);
+    }
+
+    private void OnStatsChanged()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            await LoadStats();
+            StateHasChanged();
+        });
+    }
+
+    private void OpenTrackComments(int trackId)
+    {
+        // Find track index and switch to it, then player state change triggers comment panel
+        var idx = Player.Tracks.FindIndex(t => t.Id == trackId);
+        if (idx >= 0)
+        {
+            Player.LoadTrack(idx);
+            _ = JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+        }
+    }
+
+    private string GetMostPlayedTitle()
+    {
+        if (mostPlayed == null) return "—";
+        var track = Player.Tracks.FirstOrDefault(t => t.Id == mostPlayed.TrackId);
+        return track?.Title ?? "—";
+    }
+
+    private string FormatTime(DateTime dt)
+    {
+        var diff = DateTime.UtcNow - dt;
+        if (diff.TotalMinutes < 1) return "Az önce";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}dk önce";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}sa önce";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}g önce";
+        return dt.ToString("dd MMM yyyy");
+    }
+
+    public void Dispose()
+    {
+        StatsService.OnStatsChanged -= OnStatsChanged;
+    }
+}
