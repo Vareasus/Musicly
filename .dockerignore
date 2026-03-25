@@ -1,0 +1,14 @@
+**/*.trx
+**/*.log
+**/bin/
+**/obj/
+**/out/
+**/.vs/
+**/.vscode/
+*.user
+*.suo
+*.cache
+.git
+.gitignore
+**/*.md
+test/
