@@ -17,7 +17,18 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddHubOptions(options =>
+    {
+        options.MaximumReceiveMessageSize = 128 * 1024;
+    });
+
+// Enable detailed errors for Blazor circuits
+builder.Services.AddServerSideBlazor()
+    .AddCircuitOptions(options =>
+    {
+        options.DetailedErrors = true;
+    });
 
 // PostgreSQL + EF Core
 // Render.com provides DATABASE_URL; fallback to appsettings for local dev
