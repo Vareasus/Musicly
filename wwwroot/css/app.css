@@ -1149,28 +1149,7 @@ body::before {
     }
 }
 
-/* RESPONSIVE */
-@media (max-width: 860px) {
-    .main-content {
-        grid-template-columns: 1fr;
-    }
-
-    .hero h1 {
-        font-size: 36px;
-    }
-
-    .app-header {
-        padding: 16px 20px;
-    }
-
-    .main-content {
-        padding: 20px;
-    }
-
-    .nav-links {
-        display: none;
-    }
-}
+/* (Responsive styles consolidated at bottom of file) */
 
 /* ========== STATS PAGE ========== */
 .stats-page {

@@ -1,14 +1,32 @@
-﻿// Ayca Music - Audio Interop
+// Ayca Music - Audio Interop
 let audio = null;
 let dotNetRef = null;
 let timeInterval = null;
 let savedVolume = 0.7;
+let iosUnlocked = false;
+
+// iOS Safari requires user gesture to unlock audio
+function unlockAudioForIOS() {
+    if (iosUnlocked || !audio) return;
+    audio.play().then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        iosUnlocked = true;
+    }).catch(() => {});
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+document.addEventListener('touchstart', unlockAudioForIOS, { once: true });
+document.addEventListener('click', unlockAudioForIOS, { once: true });
 
 window.audioInterop = {
     init: function (ref) {
         dotNetRef = ref;
         audio = new Audio();
         audio.volume = 0.7;
+        audio.setAttribute('playsinline', '');
+        audio.setAttribute('webkit-playsinline', '');
 
         audio.addEventListener('loadedmetadata', () => {
             dotNetRef.invokeMethodAsync('OnDurationChanged', audio.duration);
@@ -36,7 +54,7 @@ window.audioInterop = {
             switch (e.code) {
                 case 'Space':
                     e.preventDefault();
-                    if (audio.paused) audio.play(); else audio.pause();
+                    if (audio.paused) audio.play().catch(() => {}); else audio.pause();
                     break;
                 case 'ArrowRight':
                     e.preventDefault();
@@ -72,7 +90,7 @@ window.audioInterop = {
     },
 
     play: function () {
-        if (audio) return audio.play();
+        if (audio) return audio.play().catch(err => console.warn('Play blocked:', err));
     },
 
     pause: function () {
