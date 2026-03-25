@@ -1,4 +1,4 @@
-﻿using Musicly.Data;
+using Musicly.Data;
 using Musicly.Models;
 using Microsoft.EntityFrameworkCore;
 

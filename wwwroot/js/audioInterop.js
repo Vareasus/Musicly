@@ -12,7 +12,7 @@ function unlockAudioForIOS() {
         audio.pause();
         audio.currentTime = 0;
         iosUnlocked = true;
-    }).catch(() => {});
+    }).catch(() => { });
     if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
@@ -54,7 +54,7 @@ window.audioInterop = {
             switch (e.code) {
                 case 'Space':
                     e.preventDefault();
-                    if (audio.paused) audio.play().catch(() => {}); else audio.pause();
+                    if (audio.paused) audio.play().catch(() => { }); else audio.pause();
                     break;
                 case 'ArrowRight':
                     e.preventDefault();
@@ -411,7 +411,7 @@ document.addEventListener('keydown', function (e) {
 });
 
 // Apply saved theme on load
-(function() {
+(function () {
     const t = localStorage.getItem('Musicly-theme');
     if (t) document.documentElement.setAttribute('data-theme', t);
     const a = localStorage.getItem('Musicly-accent');
