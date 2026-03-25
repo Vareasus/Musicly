@@ -4,7 +4,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace AycaMusic.Migrations
+namespace Musicly.Migrations
 {
     /// <inheritdoc />
     public partial class AddSongRequests : Migration

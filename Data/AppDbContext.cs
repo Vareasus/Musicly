@@ -1,9 +1,9 @@
-using Microsoft.EntityFrameworkCore;
-using AycaMusic.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using Musicly.Models;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace AycaMusic.Data;
+namespace Musicly.Data;
 
 public class AppDbContext : DbContext
 {

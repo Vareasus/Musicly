@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace AycaMusic.Migrations
+namespace Musicly.Migrations
 {
     /// <inheritdoc />
     public partial class GeneralRequestSystem : Migration

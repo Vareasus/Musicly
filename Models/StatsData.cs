@@ -1,4 +1,4 @@
-namespace AycaMusic.Models;
+﻿namespace Musicly.Models;
 
 /// <summary>
 /// Serializable container for all listening stats – saved/loaded as JSON.

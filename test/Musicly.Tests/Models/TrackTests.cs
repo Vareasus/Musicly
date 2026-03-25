@@ -1,6 +1,6 @@
-using AycaMusic.Models;
+﻿using Musicly.Models;
 
-namespace AycaMusic.Tests.Models;
+namespace Musicly.Tests.Models;
 
 public class TrackTests
 {

@@ -1,6 +1,6 @@
-using AycaMusic.Components;
-using AycaMusic.Data;
-using AycaMusic.Services;
+﻿using Musicly.Components;
+using Musicly.Data;
+using Musicly.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
 

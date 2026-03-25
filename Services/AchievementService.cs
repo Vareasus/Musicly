@@ -1,8 +1,8 @@
-using AycaMusic.Data;
-using AycaMusic.Models;
+﻿using Musicly.Data;
+using Musicly.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace AycaMusic.Services;
+namespace Musicly.Services;
 
 public record Achievement(string Id, string Title, string Emoji, string Description, bool Unlocked);
 

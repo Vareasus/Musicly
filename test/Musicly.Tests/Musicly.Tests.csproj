@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\AycaMusic.csproj" />
+    <ProjectReference Include="..\..\Musicly.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,13 +1,13 @@
-@page "/admin"
+﻿@page "/admin"
 @implements IDisposable
-@inject AycaMusic.Services.AuthService Auth
-@inject AycaMusic.Services.ListeningStatsService Stats
-@inject AycaMusic.Services.NotificationService NotifService
-@inject AycaMusic.Services.MusicPlayerService Player
-@inject AycaMusic.Services.CommentService CommentSvc
-@inject AycaMusic.Services.SongRequestService ReqSvc
-@inject AycaMusic.Services.TrackUploadService UploadSvc
-@inject AycaMusic.Services.CustomAuthStateProvider AuthState
+@inject Musicly.Services.AuthService Auth
+@inject Musicly.Services.ListeningStatsService Stats
+@inject Musicly.Services.NotificationService NotifService
+@inject Musicly.Services.MusicPlayerService Player
+@inject Musicly.Services.CommentService CommentSvc
+@inject Musicly.Services.SongRequestService ReqSvc
+@inject Musicly.Services.TrackUploadService UploadSvc
+@inject Musicly.Services.CustomAuthStateProvider AuthState
 @inject NavigationManager Nav
 
 <section class="admin-page">
@@ -173,12 +173,12 @@
                             {
                                 <p class="admin-req-desc">@r.Description</p>
                             }
-                            @if (r.Status == AycaMusic.Models.RequestStatus.Pending)
+                            @if (r.Status == Musicly.Models.RequestStatus.Pending)
                             {
                                 <div class="admin-req-actions">
                                     <input type="text" @bind="responseTexts[r.Id]" placeholder="Yanıt mesajı (opsiyonel)" class="admin-response-input" />
-                                    <button class="admin-approve-btn" @onclick="() => RespondToRequest(r.Id, AycaMusic.Models.RequestStatus.Approved)">✅ Onayla</button>
-                                    <button class="admin-reject-btn" @onclick="() => RespondToRequest(r.Id, AycaMusic.Models.RequestStatus.Rejected)">❌ Reddet</button>
+                                    <button class="admin-approve-btn" @onclick="() => RespondToRequest(r.Id, Musicly.Models.RequestStatus.Approved)">✅ Onayla</button>
+                                    <button class="admin-reject-btn" @onclick="() => RespondToRequest(r.Id, Musicly.Models.RequestStatus.Rejected)">❌ Reddet</button>
                                 </div>
                             }
                             else if (!string.IsNullOrEmpty(r.AdminResponse))
@@ -277,14 +277,14 @@
 </section>
 
 @code {
-    private List<AycaMusic.Models.AppUser> users = new();
+    private List<Musicly.Models.AppUser> users = new();
     private Dictionary<int, (int, double)> userStats = new();
     private bool isAdmin;
     private string notifyMessage = "";
     private string notifySuccess = "";
     private bool isSending;
     private List<CommentWithLikes> allComments = new();
-    private List<AycaMusic.Models.SongRequest> allRequests = new();
+    private List<Musicly.Models.SongRequest> allRequests = new();
     private Dictionary<int, string> responseTexts = new();
     private int pendingCount;
     private int adminUserId;
@@ -333,8 +333,8 @@
                 }
                 allComments = await CommentSvc.GetAllCommentsAsync();
                 allRequests = await ReqSvc.GetAllRequestsAsync();
-                pendingCount = allRequests.Count(r => r.Status == AycaMusic.Models.RequestStatus.Pending);
-                foreach (var r in allRequests.Where(r => r.Status == AycaMusic.Models.RequestStatus.Pending))
+                pendingCount = allRequests.Count(r => r.Status == Musicly.Models.RequestStatus.Pending);
+                foreach (var r in allRequests.Where(r => r.Status == Musicly.Models.RequestStatus.Pending))
                 {
                     responseTexts.TryAdd(r.Id, "");
                 }
@@ -353,14 +353,14 @@
         isSending = false;
     }
 
-    private async Task RespondToRequest(int requestId, AycaMusic.Models.RequestStatus status)
+    private async Task RespondToRequest(int requestId, Musicly.Models.RequestStatus status)
     {
         var response = responseTexts.GetValueOrDefault(requestId, "");
         await ReqSvc.RespondToRequestAsync(requestId, status, response, adminUserId);
         allRequests = await ReqSvc.GetAllRequestsAsync();
-        pendingCount = allRequests.Count(r => r.Status == AycaMusic.Models.RequestStatus.Pending);
+        pendingCount = allRequests.Count(r => r.Status == Musicly.Models.RequestStatus.Pending);
         responseTexts.Clear();
-        foreach (var r in allRequests.Where(r => r.Status == AycaMusic.Models.RequestStatus.Pending))
+        foreach (var r in allRequests.Where(r => r.Status == Musicly.Models.RequestStatus.Pending))
         {
             responseTexts.TryAdd(r.Id, "");
         }
@@ -416,41 +416,41 @@
         return $"{bytes / (1024.0 * 1024.0):F1} MB";
     }
 
-    private string GetStatusClass(AycaMusic.Models.RequestStatus status) => status switch
+    private string GetStatusClass(Musicly.Models.RequestStatus status) => status switch
     {
-        AycaMusic.Models.RequestStatus.Pending => "status-pending",
-        AycaMusic.Models.RequestStatus.Approved => "status-approved",
-        AycaMusic.Models.RequestStatus.Rejected => "status-rejected",
+        Musicly.Models.RequestStatus.Pending => "status-pending",
+        Musicly.Models.RequestStatus.Approved => "status-approved",
+        Musicly.Models.RequestStatus.Rejected => "status-rejected",
         _ => ""
     };
 
-    private string GetStatusText(AycaMusic.Models.RequestStatus status) => status switch
+    private string GetStatusText(Musicly.Models.RequestStatus status) => status switch
     {
-        AycaMusic.Models.RequestStatus.Pending => "⏳ Beklemede",
-        AycaMusic.Models.RequestStatus.Approved => "✅ Onaylandı",
-        AycaMusic.Models.RequestStatus.Rejected => "❌ Reddedildi",
+        Musicly.Models.RequestStatus.Pending => "⏳ Beklemede",
+        Musicly.Models.RequestStatus.Approved => "✅ Onaylandı",
+        Musicly.Models.RequestStatus.Rejected => "❌ Reddedildi",
         _ => ""
     };
 
-    private string GetCatEmoji(AycaMusic.Models.RequestCategory cat) => cat switch
+    private string GetCatEmoji(Musicly.Models.RequestCategory cat) => cat switch
     {
-        AycaMusic.Models.RequestCategory.Song => "🎵",
-        AycaMusic.Models.RequestCategory.Feature => "💡",
-        AycaMusic.Models.RequestCategory.Bug => "🐛",
+        Musicly.Models.RequestCategory.Song => "🎵",
+        Musicly.Models.RequestCategory.Feature => "💡",
+        Musicly.Models.RequestCategory.Bug => "🐛",
         _ => "💬"
     };
-    private string GetCatLabel(AycaMusic.Models.RequestCategory cat) => cat switch
+    private string GetCatLabel(Musicly.Models.RequestCategory cat) => cat switch
     {
-        AycaMusic.Models.RequestCategory.Song => "Şarkı",
-        AycaMusic.Models.RequestCategory.Feature => "Özellik",
-        AycaMusic.Models.RequestCategory.Bug => "Hata",
+        Musicly.Models.RequestCategory.Song => "Şarkı",
+        Musicly.Models.RequestCategory.Feature => "Özellik",
+        Musicly.Models.RequestCategory.Bug => "Hata",
         _ => "Diğer"
     };
-    private string GetCatColor(AycaMusic.Models.RequestCategory cat) => cat switch
+    private string GetCatColor(Musicly.Models.RequestCategory cat) => cat switch
     {
-        AycaMusic.Models.RequestCategory.Song => "#7b2ff7",
-        AycaMusic.Models.RequestCategory.Feature => "#10b981",
-        AycaMusic.Models.RequestCategory.Bug => "#ef4444",
+        Musicly.Models.RequestCategory.Song => "#7b2ff7",
+        Musicly.Models.RequestCategory.Feature => "#10b981",
+        Musicly.Models.RequestCategory.Bug => "#ef4444",
         _ => "#f59e0b"
     };
 

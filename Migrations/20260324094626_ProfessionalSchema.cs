@@ -6,7 +6,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
 
-namespace AycaMusic.Migrations
+namespace Musicly.Migrations
 {
     /// <inheritdoc />
     public partial class ProfessionalSchema : Migration

@@ -1,7 +1,7 @@
-using AycaMusic.Models;
-using AycaMusic.Services;
+﻿using Musicly.Models;
+using Musicly.Services;
 
-namespace AycaMusic.Tests.Models;
+namespace Musicly.Tests.Models;
 
 public class ListeningHistoryTests
 {

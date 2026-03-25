@@ -1,7 +1,7 @@
-@page "/"
+﻿@page "/"
 @implements IDisposable
-@inject AycaMusic.Services.MusicPlayerService Player
-@inject AycaMusic.Services.ListeningStatsService Stats
+@inject Musicly.Services.MusicPlayerService Player
+@inject Musicly.Services.ListeningStatsService Stats
 @inject IJSRuntime JS
 
 <section class="hero">
@@ -112,7 +112,7 @@
 
 @code {
     private string selectedMood = "";
-    private List<AycaMusic.Models.UserTrackStats> recentlyPlayed = new();
+    private List<Musicly.Models.UserTrackStats> recentlyPlayed = new();
 
     private record MoodOption(string Name, string Emoji, string Color, string Gradient);
 

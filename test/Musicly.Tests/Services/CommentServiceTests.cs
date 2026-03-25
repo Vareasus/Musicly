@@ -1,9 +1,9 @@
-using AycaMusic.Data;
-using AycaMusic.Models;
-using AycaMusic.Services;
+﻿using Musicly.Data;
+using Musicly.Models;
+using Musicly.Services;
 using Microsoft.EntityFrameworkCore;
 
-namespace AycaMusic.Tests.Services;
+namespace Musicly.Tests.Services;
 
 public class CommentServiceTests
 {

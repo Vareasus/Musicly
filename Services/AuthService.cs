@@ -1,8 +1,8 @@
-using AycaMusic.Data;
-using AycaMusic.Models;
+﻿using Musicly.Data;
+using Musicly.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace AycaMusic.Services;
+namespace Musicly.Services;
 
 public class AuthService
 {

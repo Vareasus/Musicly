@@ -1,9 +1,9 @@
-@page "/stats"
+﻿@page "/stats"
 @implements IDisposable
-@inject AycaMusic.Services.ListeningStatsService StatsService
-@inject AycaMusic.Services.CommentService CommentSvc
-@inject AycaMusic.Services.MusicPlayerService Player
-@inject AycaMusic.Services.CustomAuthStateProvider AuthState
+@inject Musicly.Services.ListeningStatsService StatsService
+@inject Musicly.Services.CommentService CommentSvc
+@inject Musicly.Services.MusicPlayerService Player
+@inject Musicly.Services.CustomAuthStateProvider AuthState
 @inject IJSRuntime JS
 
 <section class="stats-page">
@@ -135,10 +135,10 @@
 </section>
 
 @code {
-    private List<AycaMusic.Models.UserTrackStats> allStats = new();
+    private List<Musicly.Models.UserTrackStats> allStats = new();
     private int totalPlays;
     private string totalListeningFormatted = "0m 0s";
-    private AycaMusic.Models.UserTrackStats? mostPlayed;
+    private Musicly.Models.UserTrackStats? mostPlayed;
     private int likedCount;
     private List<CommentWithLikes> myComments = new();
     private int currentUserId;

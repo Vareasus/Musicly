@@ -1,4 +1,4 @@
-namespace AycaMusic.Models;
+﻿namespace Musicly.Models;
 
 /// <summary>
 /// Database-stored track. The in-memory Track model still used for runtime playback.

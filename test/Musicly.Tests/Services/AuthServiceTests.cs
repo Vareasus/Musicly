@@ -1,7 +1,7 @@
-using AycaMusic.Data;
-using AycaMusic.Services;
+﻿using Musicly.Data;
+using Musicly.Services;
 
-namespace AycaMusic.Tests.Services;
+namespace Musicly.Tests.Services;
 
 public class AuthServiceTests
 {

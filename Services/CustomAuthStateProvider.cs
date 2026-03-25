@@ -1,9 +1,9 @@
-using Microsoft.AspNetCore.Components.Authorization;
+﻿using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using System.Security.Claims;
-using AycaMusic.Models;
+using Musicly.Models;
 
-namespace AycaMusic.Services;
+namespace Musicly.Services;
 
 public class CustomAuthStateProvider : AuthenticationStateProvider
 {

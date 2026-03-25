@@ -1,11 +1,11 @@
-@inherits LayoutComponentBase
+﻿@inherits LayoutComponentBase
 @implements IDisposable
-@inject AycaMusic.Services.MusicPlayerService Player
-@inject AycaMusic.Services.ListeningStatsService Stats
-@inject AycaMusic.Services.CustomAuthStateProvider AuthState
-@inject AycaMusic.Services.NotificationService NotifService
-@inject AycaMusic.Services.CommentService CommentSvc
-@inject AycaMusic.Services.SongRequestService ReqSvc
+@inject Musicly.Services.MusicPlayerService Player
+@inject Musicly.Services.ListeningStatsService Stats
+@inject Musicly.Services.CustomAuthStateProvider AuthState
+@inject Musicly.Services.NotificationService NotifService
+@inject Musicly.Services.CommentService CommentSvc
+@inject Musicly.Services.SongRequestService ReqSvc
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
@@ -355,7 +355,7 @@ else
     // Notifications
     private bool showNotifPanel;
     private int unreadCount;
-    private List<AycaMusic.Models.Notification> notifications = new();
+    private List<Musicly.Models.Notification> notifications = new();
 
     // Comments
     private bool showComments;

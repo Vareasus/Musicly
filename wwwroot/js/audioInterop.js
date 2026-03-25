@@ -1,4 +1,4 @@
-// Ayca Music - Audio Interop
+﻿// Ayca Music - Audio Interop
 let audio = null;
 let dotNetRef = null;
 let timeInterval = null;
@@ -318,22 +318,22 @@ window.audioInterop.seek = function (time) {
 // ===== THEME & ACCENT =====
 window.audioInterop.setTheme = function (theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('aycamusic-theme', theme);
+    localStorage.setItem('Musicly-theme', theme);
 };
 
 window.audioInterop.setAccent = function (accent) {
     document.documentElement.setAttribute('data-accent', accent);
-    localStorage.setItem('aycamusic-accent', accent);
+    localStorage.setItem('Musicly-accent', accent);
 };
 
 window.audioInterop.getTheme = function () {
-    const t = localStorage.getItem('aycamusic-theme') || 'dark';
+    const t = localStorage.getItem('Musicly-theme') || 'dark';
     document.documentElement.setAttribute('data-theme', t);
     return t;
 };
 
 window.audioInterop.getAccent = function () {
-    const a = localStorage.getItem('aycamusic-accent') || 'pink';
+    const a = localStorage.getItem('Musicly-accent') || 'pink';
     document.documentElement.setAttribute('data-accent', a);
     return a;
 };
@@ -394,9 +394,9 @@ document.addEventListener('keydown', function (e) {
 
 // Apply saved theme on load
 (function() {
-    const t = localStorage.getItem('aycamusic-theme');
+    const t = localStorage.getItem('Musicly-theme');
     if (t) document.documentElement.setAttribute('data-theme', t);
-    const a = localStorage.getItem('aycamusic-accent');
+    const a = localStorage.getItem('Musicly-accent');
     if (a) document.documentElement.setAttribute('data-accent', a);
 })();
 

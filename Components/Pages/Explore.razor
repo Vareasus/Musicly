@@ -1,7 +1,7 @@
-@page "/explore"
+﻿@page "/explore"
 @implements IDisposable
-@inject AycaMusic.Services.MusicPlayerService Player
-@inject AycaMusic.Services.ListeningStatsService Stats
+@inject Musicly.Services.MusicPlayerService Player
+@inject Musicly.Services.ListeningStatsService Stats
 @inject IJSRuntime JS
 
 <section class="explore-page">
@@ -176,7 +176,7 @@
 
     private int GetGenreCount(string genre) => Player.GetTracksByGenre(genre).Count;
 
-    private List<AycaMusic.Models.Track> GetFilteredTracks()
+    private List<Musicly.Models.Track> GetFilteredTracks()
     {
         var tracks = string.IsNullOrEmpty(searchQuery)
             ? Player.GetTracksByGenre(selectedGenre)

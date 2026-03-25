@@ -1,7 +1,7 @@
-@page "/requests"
+﻿@page "/requests"
 @implements IDisposable
-@inject AycaMusic.Services.SongRequestService ReqSvc
-@inject AycaMusic.Services.CustomAuthStateProvider AuthState
+@inject Musicly.Services.SongRequestService ReqSvc
+@inject Musicly.Services.CustomAuthStateProvider AuthState
 @inject NavigationManager Nav
 
 <section class="requests-page">
@@ -97,8 +97,8 @@
 </section>
 
 @code {
-    private List<AycaMusic.Models.SongRequest> myRequests = new();
-    private AycaMusic.Models.RequestCategory selectedCategory = AycaMusic.Models.RequestCategory.Song;
+    private List<Musicly.Models.SongRequest> myRequests = new();
+    private Musicly.Models.RequestCategory selectedCategory = Musicly.Models.RequestCategory.Song;
     private string title = "";
     private string description = "";
     private string errorMsg = "";
@@ -107,13 +107,13 @@
     private int currentUserId;
     private string currentUsername = "";
 
-    private record CategoryOption(AycaMusic.Models.RequestCategory Value, string Emoji, string Label, string Color);
+    private record CategoryOption(Musicly.Models.RequestCategory Value, string Emoji, string Label, string Color);
     private readonly List<CategoryOption> categories = new()
     {
-        new(AycaMusic.Models.RequestCategory.Song, "🎵", "Şarkı Talebi", "#7b2ff7"),
-        new(AycaMusic.Models.RequestCategory.Feature, "💡", "Özellik Önerisi", "#10b981"),
-        new(AycaMusic.Models.RequestCategory.Bug, "🐛", "Hata Bildirimi", "#ef4444"),
-        new(AycaMusic.Models.RequestCategory.Other, "💬", "Diğer", "#f59e0b"),
+        new(Musicly.Models.RequestCategory.Song, "🎵", "Şarkı Talebi", "#7b2ff7"),
+        new(Musicly.Models.RequestCategory.Feature, "💡", "Özellik Önerisi", "#10b981"),
+        new(Musicly.Models.RequestCategory.Bug, "🐛", "Hata Bildirimi", "#ef4444"),
+        new(Musicly.Models.RequestCategory.Other, "💬", "Diğer", "#f59e0b"),
     };
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -153,31 +153,31 @@
 
     private string GetPlaceholder() => selectedCategory switch
     {
-        AycaMusic.Models.RequestCategory.Song => "Örn: Bohemian Rhapsody — Queen",
-        AycaMusic.Models.RequestCategory.Feature => "Örn: Karanlık tema desteği eklensin",
-        AycaMusic.Models.RequestCategory.Bug => "Örn: Şarkı geçişlerinde ses kesiliyor",
+        Musicly.Models.RequestCategory.Song => "Örn: Bohemian Rhapsody — Queen",
+        Musicly.Models.RequestCategory.Feature => "Örn: Karanlık tema desteği eklensin",
+        Musicly.Models.RequestCategory.Bug => "Örn: Şarkı geçişlerinde ses kesiliyor",
         _ => "Talebini kısaca yaz..."
     };
 
-    private string GetStatusClass(AycaMusic.Models.RequestStatus status) => status switch
+    private string GetStatusClass(Musicly.Models.RequestStatus status) => status switch
     {
-        AycaMusic.Models.RequestStatus.Pending => "status-pending",
-        AycaMusic.Models.RequestStatus.Approved => "status-approved",
-        AycaMusic.Models.RequestStatus.Rejected => "status-rejected",
+        Musicly.Models.RequestStatus.Pending => "status-pending",
+        Musicly.Models.RequestStatus.Approved => "status-approved",
+        Musicly.Models.RequestStatus.Rejected => "status-rejected",
         _ => ""
     };
 
-    private string GetStatusText(AycaMusic.Models.RequestStatus status) => status switch
+    private string GetStatusText(Musicly.Models.RequestStatus status) => status switch
     {
-        AycaMusic.Models.RequestStatus.Pending => "⏳ Beklemede",
-        AycaMusic.Models.RequestStatus.Approved => "✅ Onaylandı",
-        AycaMusic.Models.RequestStatus.Rejected => "❌ Reddedildi",
+        Musicly.Models.RequestStatus.Pending => "⏳ Beklemede",
+        Musicly.Models.RequestStatus.Approved => "✅ Onaylandı",
+        Musicly.Models.RequestStatus.Rejected => "❌ Reddedildi",
         _ => ""
     };
 
-    private string GetCatEmoji(AycaMusic.Models.RequestCategory cat) => categories.FirstOrDefault(c => c.Value == cat)?.Emoji ?? "💬";
-    private string GetCatLabel(AycaMusic.Models.RequestCategory cat) => categories.FirstOrDefault(c => c.Value == cat)?.Label ?? "Diğer";
-    private string GetCatColor(AycaMusic.Models.RequestCategory cat) => categories.FirstOrDefault(c => c.Value == cat)?.Color ?? "#f59e0b";
+    private string GetCatEmoji(Musicly.Models.RequestCategory cat) => categories.FirstOrDefault(c => c.Value == cat)?.Emoji ?? "💬";
+    private string GetCatLabel(Musicly.Models.RequestCategory cat) => categories.FirstOrDefault(c => c.Value == cat)?.Label ?? "Diğer";
+    private string GetCatColor(Musicly.Models.RequestCategory cat) => categories.FirstOrDefault(c => c.Value == cat)?.Color ?? "#f59e0b";
 
     private string FormatTime(DateTime dt)
     {

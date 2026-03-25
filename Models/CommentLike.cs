@@ -1,4 +1,4 @@
-namespace AycaMusic.Models;
+﻿namespace Musicly.Models;
 
 public class CommentLike
 {

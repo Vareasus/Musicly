@@ -1,11 +1,11 @@
-@page "/profile/{UserId:int}"
+﻿@page "/profile/{UserId:int}"
 @implements IDisposable
-@inject AycaMusic.Services.AuthService Auth
-@inject AycaMusic.Services.CommentService CommentSvc
-@inject AycaMusic.Services.MusicPlayerService Player
-@inject AycaMusic.Services.ListeningStatsService Stats
-@inject AycaMusic.Services.AchievementService AchieveSvc
-@inject AycaMusic.Services.CustomAuthStateProvider AuthState
+@inject Musicly.Services.AuthService Auth
+@inject Musicly.Services.CommentService CommentSvc
+@inject Musicly.Services.MusicPlayerService Player
+@inject Musicly.Services.ListeningStatsService Stats
+@inject Musicly.Services.AchievementService AchieveSvc
+@inject Musicly.Services.CustomAuthStateProvider AuthState
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
@@ -216,8 +216,8 @@
     private AppUser? profileUser;
     private List<CommentWithLikes> userComments = new();
     private List<int> likedTrackIds = new();
-    private List<AycaMusic.Models.UserTrackStats> topTracks = new();
-    private List<AycaMusic.Services.Achievement> achievements = new();
+    private List<Musicly.Models.UserTrackStats> topTracks = new();
+    private List<Musicly.Services.Achievement> achievements = new();
     private string listenerBadge = "";
     private int totalPlays;
     private string totalListeningFormatted = "0m 0s";
