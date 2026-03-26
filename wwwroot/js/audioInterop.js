@@ -3,22 +3,40 @@ let audio = null;
 let dotNetRef = null;
 let timeInterval = null;
 let savedVolume = 0.7;
-let iosUnlocked = false;
+let mobileAudioUnlocked = false;
+let pendingPlay = false;
 
-// iOS Safari requires user gesture to unlock audio
-function unlockAudioForIOS() {
-    if (iosUnlocked || !audio) return;
-    audio.play().then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-        iosUnlocked = true;
-    }).catch(() => { });
-    if (audioCtx && audioCtx.state === 'suspended') {
+// Mobile browsers require user gesture to unlock audio playback
+function unlockMobileAudio() {
+    // If there's a pending play request, execute it now (in user gesture context)
+    if (pendingPlay && audio && audio.src) {
+        audio.play().then(function() {
+            pendingPlay = false;
+            mobileAudioUnlocked = true;
+        }).catch(function() {});
+        return;
+    }
+    
+    if (mobileAudioUnlocked || !audio) return;
+    
+    audio.muted = true;
+    var p = audio.play();
+    if (p) {
+        p.then(function() {
+            audio.pause();
+            audio.muted = false;
+            audio.currentTime = 0;
+            mobileAudioUnlocked = true;
+        }).catch(function() { audio.muted = false; });
+    }
+    
+    if (typeof audioCtx !== 'undefined' && audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
 }
-document.addEventListener('touchstart', unlockAudioForIOS, { once: true });
-document.addEventListener('click', unlockAudioForIOS, { once: true });
+document.addEventListener('touchstart', unlockMobileAudio, { passive: true });
+document.addEventListener('touchend', unlockMobileAudio, { passive: true });
+document.addEventListener('click', unlockMobileAudio);
 
 window.audioInterop = {
     init: function (ref) {
@@ -90,17 +108,35 @@ window.audioInterop = {
     },
 
     play: function () {
-        if (audio) return audio.play().catch(err => console.warn('Play blocked:', err));
+        if (!audio) return;
+        var p = audio.play();
+        if (p) {
+            p.catch(function(err) {
+                console.warn('Play blocked, will retry on next tap:', err.message);
+                pendingPlay = true;
+            });
+        }
     },
 
     pause: function () {
         if (audio) audio.pause();
+        pendingPlay = false;
     },
 
     togglePlay: function () {
         if (!audio) return;
-        if (audio.paused) return audio.play();
-        else audio.pause();
+        if (audio.paused) {
+            var p = audio.play();
+            if (p) {
+                p.catch(function(err) {
+                    console.warn('Toggle play blocked:', err.message);
+                    pendingPlay = true;
+                });
+            }
+        } else {
+            audio.pause();
+            pendingPlay = false;
+        }
     },
 
     seek: function (time) {
