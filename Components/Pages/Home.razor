@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @implements IDisposable
 @inject Musicly.Services.MusicPlayerService Player
 @inject Musicly.Services.ListeningStatsService Stats
@@ -126,8 +126,8 @@
 
     protected override void OnInitialized()
     {
-        Player.OnStateChanged += StateChanged;
-        Stats.OnStatsChanged += StateChanged;
+        Player.OnStateChanged += PlayerStateChanged;
+        Stats.OnStatsChanged += StatsStateChanged;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -139,7 +139,14 @@
         }
     }
 
-    private void StateChanged()
+    // Player state changes (time update, play/pause etc.) - UI only, NO database query
+    private void PlayerStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    // Stats changes (track started, like/dislike) - refresh recently played from DB
+    private void StatsStateChanged()
     {
         _ = InvokeAsync(async () =>
         {
@@ -199,7 +206,7 @@
 
     public void Dispose()
     {
-        Player.OnStateChanged -= StateChanged;
-        Stats.OnStatsChanged -= StateChanged;
+        Player.OnStateChanged -= PlayerStateChanged;
+        Stats.OnStatsChanged -= StatsStateChanged;
     }
 }

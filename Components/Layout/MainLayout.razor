@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @implements IDisposable
 @inject Musicly.Services.MusicPlayerService Player
 @inject Musicly.Services.ListeningStatsService Stats
@@ -437,11 +437,19 @@ else
         }
     }
 
+    private int _lastLikeCheckTrackId = -1;
+
     private void StateChanged()
     {
         _ = InvokeAsync(async () =>
         {
-            await RefreshLikeState();
+            // Only query like/dislike state when the track changes, NOT on every time update
+            var currentId = Player.CurrentTrack.Id;
+            if (currentId != _lastLikeCheckTrackId)
+            {
+                _lastLikeCheckTrackId = currentId;
+                await RefreshLikeState();
+            }
             StateHasChanged();
         });
     }
@@ -542,13 +550,17 @@ else
     private async Task OnLikeToggle()
     {
         await Stats.ToggleLikeAsync(Player.CurrentTrack.Id);
+        _lastLikeCheckTrackId = -1; // Force refresh
         await RefreshLikeState();
+        _lastLikeCheckTrackId = Player.CurrentTrack.Id;
     }
 
     private async Task OnDislikeToggle()
     {
         await Stats.ToggleDislikeAsync(Player.CurrentTrack.Id);
+        _lastLikeCheckTrackId = -1; // Force refresh
         await RefreshLikeState();
+        _lastLikeCheckTrackId = Player.CurrentTrack.Id;
     }
 
     private async Task OnTogglePlay()
