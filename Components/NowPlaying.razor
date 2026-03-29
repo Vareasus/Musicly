@@ -1,4 +1,4 @@
-﻿@implements IDisposable
+@implements IDisposable
 @inject Musicly.Services.MusicPlayerService Player
 @inject IJSRuntime JS
 
@@ -32,7 +32,7 @@
         <button class="ctrl-btn" title="Previous" @onclick="OnPrev">
             <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
         </button>
-        <button class="play-btn" title="Play / Pause" @onclick="OnTogglePlay">
+        <button class="play-btn" title="Play / Pause" onclick="window.audioInterop.togglePlay()">
             @if (Player.IsPlaying)
             {
                 <svg viewBox="0 0 24 24" fill="#fff"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>

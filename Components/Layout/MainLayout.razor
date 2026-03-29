@@ -192,7 +192,7 @@ else
                     <button class="bottom-ctrl-btn" @onclick="OnPrev">
                         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
                     </button>
-                    <button class="bottom-play-btn" @onclick="OnTogglePlay">
+                    <button class="bottom-play-btn" onclick="window.audioInterop.togglePlay()">
                         @if (Player.IsPlaying)
                         {
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
