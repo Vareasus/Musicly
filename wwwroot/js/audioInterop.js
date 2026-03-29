@@ -9,36 +9,36 @@ let pendingPlay = false;
 // Mobile browsers require user gesture to unlock audio playback
 function unlockMobileAudio() {
     if (!audio) return;
-    
+
     // If there's a pending play request, execute it now (in user gesture context)
     if (pendingPlay && audio.src) {
-        audio.play().then(function() {
+        audio.play().then(function () {
             pendingPlay = false;
             mobileAudioUnlocked = true;
             console.log('Mobile audio: pending play succeeded');
-        }).catch(function(e) {
+        }).catch(function (e) {
             console.warn('Mobile audio: pending play failed:', e.message);
         });
         return;
     }
-    
+
     if (mobileAudioUnlocked) return;
-    
+
     // Try to unlock audio context by playing a silent moment
     audio.muted = true;
     var p = audio.play();
     if (p) {
-        p.then(function() {
+        p.then(function () {
             audio.pause();
             audio.muted = false;
             audio.currentTime = 0;
             mobileAudioUnlocked = true;
             console.log('Mobile audio: unlocked successfully');
-        }).catch(function() { 
-            audio.muted = false; 
+        }).catch(function () {
+            audio.muted = false;
         });
     }
-    
+
     // Also resume AudioContext if suspended
     if (typeof audioCtx !== 'undefined' && audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
@@ -125,7 +125,7 @@ window.audioInterop = {
         if (!audio) return;
         var p = audio.play();
         if (p) {
-            p.catch(function(err) {
+            p.catch(function (err) {
                 console.warn('Play blocked, will retry on next tap:', err.message);
                 pendingPlay = true;
             });
@@ -142,7 +142,7 @@ window.audioInterop = {
         if (audio.paused) {
             var p = audio.play();
             if (p) {
-                p.catch(function(err) {
+                p.catch(function (err) {
                     console.warn('Toggle play blocked:', err.message);
                     pendingPlay = true;
                 });
@@ -489,24 +489,24 @@ window.audioInterop.downloadTrack = function (src, filename) {
 // Blazor Server goes: click -> WebSocket -> server -> WebSocket -> JS -> audio.play()
 // Mobile browsers BLOCK audio.play() because it's no longer in a user gesture context.
 // This listener intercepts the click DIRECTLY and calls audio.play() immediately.
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     var btn = e.target.closest('.bottom-play-btn, .play-btn');
     if (!btn || !audio) return;
-    
+
     // Resume AudioContext if suspended (required for Web Audio API / EQ)
     if (typeof audioCtx !== 'undefined' && audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
-    
+
     if (audio.paused) {
         if (!audio.src || audio.src === window.location.href) {
             pendingPlay = true;
             return;
         }
-        audio.play().then(function() {
+        audio.play().then(function () {
             mobileAudioUnlocked = true;
             pendingPlay = false;
-        }).catch(function(err) {
+        }).catch(function (err) {
             console.warn('Mobile: direct play failed:', err.message);
             pendingPlay = true;
         });
@@ -517,7 +517,7 @@ document.addEventListener('click', function(e) {
 }, true); // capture phase = runs BEFORE Blazor
 
 // Handle prev/next: auto-play after Blazor loads new track
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     var btn = e.target.closest('.bottom-ctrl-btn');
     if (!btn || !audio) return;
     var svg = btn.querySelector('svg');
@@ -531,7 +531,7 @@ document.addEventListener('click', function(e) {
         mobileAudioUnlocked = true;
         audio.addEventListener('loadeddata', function onLoaded() {
             audio.removeEventListener('loadeddata', onLoaded);
-            audio.play().catch(function() {});
+            audio.play().catch(function () { });
         });
     }
 }, true);
