@@ -8,17 +8,23 @@ let pendingPlay = false;
 
 // Mobile browsers require user gesture to unlock audio playback
 function unlockMobileAudio() {
+    if (!audio) return;
+    
     // If there's a pending play request, execute it now (in user gesture context)
-    if (pendingPlay && audio && audio.src) {
+    if (pendingPlay && audio.src) {
         audio.play().then(function() {
             pendingPlay = false;
             mobileAudioUnlocked = true;
-        }).catch(function() {});
+            console.log('Mobile audio: pending play succeeded');
+        }).catch(function(e) {
+            console.warn('Mobile audio: pending play failed:', e.message);
+        });
         return;
     }
     
-    if (mobileAudioUnlocked || !audio) return;
+    if (mobileAudioUnlocked) return;
     
+    // Try to unlock audio context by playing a silent moment
     audio.muted = true;
     var p = audio.play();
     if (p) {
@@ -27,16 +33,24 @@ function unlockMobileAudio() {
             audio.muted = false;
             audio.currentTime = 0;
             mobileAudioUnlocked = true;
-        }).catch(function() { audio.muted = false; });
+            console.log('Mobile audio: unlocked successfully');
+        }).catch(function() { 
+            audio.muted = false; 
+        });
     }
     
+    // Also resume AudioContext if suspended
     if (typeof audioCtx !== 'undefined' && audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
 }
-document.addEventListener('touchstart', unlockMobileAudio, { passive: true });
-document.addEventListener('touchend', unlockMobileAudio, { passive: true });
-document.addEventListener('click', unlockMobileAudio);
+
+function registerMobileUnlock() {
+    document.addEventListener('touchstart', unlockMobileAudio, { passive: true });
+    document.addEventListener('touchend', unlockMobileAudio, { passive: true });
+    document.addEventListener('click', unlockMobileAudio);
+}
+registerMobileUnlock();
 
 window.audioInterop = {
     init: function (ref) {
