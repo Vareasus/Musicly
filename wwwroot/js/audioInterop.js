@@ -485,3 +485,43 @@ window.audioInterop.downloadTrack = function (src, filename) {
         .catch(err => console.error('Download failed:', err));
 };
 
+// ===== PLAY BUTTON HANDLER (Event Delegation) =====
+// Single handler for ALL play buttons. No @onclick, no HTML onclick needed.
+// Runs in user gesture context → mobile audio works.
+// Audio play/pause events notify Blazor of state changes automatically.
+document.addEventListener('click', function(e) {
+    var playBtn = e.target.closest('.bottom-play-btn, .play-btn');
+    if (!playBtn || !audio) return;
+    
+    // Resume AudioContext if suspended (for equalizer)
+    if (typeof audioCtx !== 'undefined' && audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    
+    if (audio.paused) {
+        audio.play().catch(function(err) {
+            console.warn('Play blocked:', err.message);
+            pendingPlay = true;
+        });
+    } else {
+        audio.pause();
+        pendingPlay = false;
+    }
+});
+
+// ===== TRACK CLICK HANDLER =====
+// When user clicks a track in the list, Blazor loads it via @onclick.
+// But on mobile, the subsequent play() call fails. So we listen for
+// loadeddata events and auto-play if audio was recently unlocked.
+document.addEventListener('click', function(e) {
+    var trackItem = e.target.closest('.track-item');
+    if (!trackItem || !audio) return;
+    
+    mobileAudioUnlocked = true;
+    // After Blazor loads the new track, auto-play it
+    var onLoaded = function() {
+        audio.removeEventListener('loadeddata', onLoaded);
+        audio.play().catch(function() {});
+    };
+    audio.addEventListener('loadeddata', onLoaded);
+});
