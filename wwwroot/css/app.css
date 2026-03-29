@@ -4547,6 +4547,11 @@ html {
     }
 
     .header-right { gap: 6px; }
+    /* Hide non-essential header elements on mobile */
+    .user-info { display: none; }
+    .theme-switcher { display: none; }
+    .notif-container { display: none; }
+    .eq-bars { display: none; }
 
     /* ---- BOTTOM PLAYER MOBILE ---- */
     .bottom-player { padding: 0; }
