@@ -5,6 +5,7 @@ let timeInterval = null;
 let savedVolume = 0.7;
 let mobileAudioUnlocked = false;
 let pendingPlay = false;
+let isUnlocking = false;
 
 // Mobile browsers require user gesture to unlock audio playback
 function unlockMobileAudio() {
@@ -25,6 +26,7 @@ function unlockMobileAudio() {
     if (mobileAudioUnlocked) return;
 
     // Try to unlock audio context by playing a silent moment
+    isUnlocking = true;
     audio.muted = true;
     var p = audio.play();
     if (p) {
@@ -33,9 +35,11 @@ function unlockMobileAudio() {
             audio.muted = false;
             audio.currentTime = 0;
             mobileAudioUnlocked = true;
+            isUnlocking = false;
             console.log('Mobile audio: unlocked successfully');
         }).catch(function () {
             audio.muted = false;
+            isUnlocking = false;
         });
     }
 
@@ -69,11 +73,13 @@ window.audioInterop = {
         });
 
         audio.addEventListener('play', () => {
+            if (isUnlocking) return; // Ignore muted unlock play
             dotNetRef.invokeMethodAsync('OnPlayStateChanged', true);
             startTimeUpdates();
         });
 
         audio.addEventListener('pause', () => {
+            if (isUnlocking) return; // Ignore muted unlock pause
             dotNetRef.invokeMethodAsync('OnPlayStateChanged', false);
             stopTimeUpdates();
         });
