@@ -30,6 +30,14 @@
                 <input type="password" @bind="password" placeholder="Şifre" />
             </div>
 
+            <div class="auth-remember">
+                <label class="remember-label">
+                    <input type="checkbox" @bind="rememberMe" />
+                    <span class="remember-check"></span>
+                    <span>Beni Hatırla</span>
+                </label>
+            </div>
+
             <button type="submit" class="auth-submit" disabled="@isLoading">
                 @if (isLoading) { <span class="auth-spinner"></span> }
                 else { <span>Sign In</span> }
@@ -47,6 +55,7 @@
     private string password = "";
     private string error = "";
     private bool isLoading;
+    private bool rememberMe;
 
     private async Task OnLogin()
     {
@@ -66,7 +75,7 @@
                 error = "Kullanıcı adı veya şifre hatalı";
                 return;
             }
-            await AuthState.LoginAsync(user);
+            await AuthState.LoginAsync(user, rememberMe);
             Nav.NavigateTo("/", forceLoad: true);
         }
         finally

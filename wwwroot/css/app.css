@@ -2738,6 +2738,45 @@ body::before {
     color: var(--text-dim);
 }
 
+/* Remember Me */
+.auth-remember {
+    margin: 12px 0 4px;
+}
+.remember-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-secondary);
+    -webkit-tap-highlight-color: transparent;
+}
+.remember-label input[type="checkbox"] {
+    display: none;
+}
+.remember-check {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    border: 2px solid var(--border);
+    background: transparent;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.remember-label input:checked ~ .remember-check {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+.remember-label input:checked ~ .remember-check::after {
+    content: '✓';
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+}
+
 .auth-submit {
     width: 100%;
     padding: 14px;
