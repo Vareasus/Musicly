@@ -247,7 +247,7 @@ else
                     <button class="bottom-ctrl-btn" @onclick="OnPrev">
                         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
                     </button>
-                    <button class="bottom-play-btn">
+                    <button class="bottom-play-btn" @onclick="OnTogglePlay">
                         @if (Player.IsPlaying)
                         {
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
@@ -735,7 +735,7 @@ else
     private void ToggleThemePanel() => showThemePanel = !showThemePanel;
     private void ToggleMobileNav() => showMobileNav = !showMobileNav;
     private void CloseMobileNav() => showMobileNav = false;
-    private void ToggleThemePanelMobile() { showMobileNav = false; showThemePanel = !showThemePanel; }
+    private void ToggleThemePanelMobile() { showThemePanel = !showThemePanel; }
     private void ToggleNotifPanelMobile() { showMobileNav = false; showNotifPanel = !showNotifPanel; }
     private string GetThemeClass(string theme) => currentTheme == theme ? "active" : "";
     private string GetAccentClass(string accent) => currentAccent == accent ? "active" : "";
