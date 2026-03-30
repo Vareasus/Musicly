@@ -29,6 +29,16 @@ else
                 <div class="logo-tagline">Your Music, Your Soul</div>
             </div>
         </div>
+        @* Mobile notification bell - shown only on mobile, left of hamburger *@
+        <div class="mobile-notif-btn">
+            <button class="notif-bell" @onclick="ToggleNotifPanel">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+                @if (unreadCount > 0)
+                {
+                    <span class="notif-badge">@unreadCount</span>
+                }
+            </button>
+        </div>
         <button class="hamburger-btn" @onclick="ToggleMobileNav" aria-label="Menu">
             <span></span><span></span><span></span>
         </button>
@@ -79,7 +89,7 @@ else
                     </div>
                 }
             </div>
-            <!-- NOTIFICATIONS -->
+            <!-- NOTIFICATIONS (desktop) -->
             <div class="notif-container">
                 <button class="notif-bell" @onclick="ToggleNotifPanel">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
@@ -88,32 +98,6 @@ else
                         <span class="notif-badge">@unreadCount</span>
                     }
                 </button>
-                @if (showNotifPanel)
-                {
-                    <div class="notif-panel">
-                        <div class="notif-panel-header">
-                            <h4>Notifications</h4>
-                            @if (unreadCount > 0)
-                            {
-                                <button class="notif-mark-all" @onclick="MarkAllRead">Mark all read</button>
-                            }
-                        </div>
-                        @if (notifications.Count == 0)
-                        {
-                            <div class="notif-empty">No notifications yet</div>
-                        }
-                        else
-                        {
-                            @foreach (var n in notifications)
-                            {
-                                <div class="notif-item @(n.IsRead ? "" : "unread")">
-                                    <div class="notif-msg">@n.Message</div>
-                                    <div class="notif-time">@FormatNotifTime(n.CreatedAt)</div>
-                                </div>
-                            }
-                        }
-                    </div>
-                }
             </div>
             <!-- USER -->
             <div class="user-info">
@@ -130,7 +114,36 @@ else
         </div>
     </header>
 
-    @* ---- MOBILE NAV SIDEBAR (outside header for proper fixed positioning) ---- *@
+    @* ---- NOTIFICATION PANEL (outside header for mobile support) ---- *@
+    @if (showNotifPanel)
+    {
+        <div class="mobile-notif-panel-overlay" @onclick="ToggleNotifPanel"></div>
+        <div class="notif-panel notif-panel-mobile">
+            <div class="notif-panel-header">
+                <h4>Notifications</h4>
+                @if (unreadCount > 0)
+                {
+                    <button class="notif-mark-all" @onclick="MarkAllRead">Mark all read</button>
+                }
+            </div>
+            @if (notifications.Count == 0)
+            {
+                <div class="notif-empty">No notifications yet</div>
+            }
+            else
+            {
+                @foreach (var n in notifications)
+                {
+                    <div class="notif-item @(n.IsRead ? "" : "unread")">
+                        <div class="notif-msg">@n.Message</div>
+                        <div class="notif-time">@FormatNotifTime(n.CreatedAt)</div>
+                    </div>
+                }
+            }
+        </div>
+    }
+
+    @* ---- MOBILE NAV SIDEBAR ---- *@
     @if (showMobileNav)
     {
         <div class="mobile-nav-overlay" @onclick="ToggleMobileNav"></div>
@@ -152,7 +165,26 @@ else
         }
         <div class="mobile-nav-divider"></div>
         <button class="mobile-nav-action-btn" @onclick="ToggleThemePanelMobile">🎨 Tema Değiştir</button>
-        <button class="mobile-nav-action-btn" @onclick="ToggleNotifPanelMobile">🔔 Bildirimler @(unreadCount > 0 ? $"({unreadCount})" : "")</button>
+        @if (showThemePanel)
+        {
+            <div class="mobile-theme-panel">
+                <div class="theme-section"><span class="theme-lbl">Tema</span>
+                    <div class="theme-options">
+                        <button class="@GetThemeClass("dark")" @onclick="SetThemeDark">🌙 Dark</button>
+                        <button class="@GetThemeClass("amoled")" @onclick="SetThemeAmoled">⚫ AMOLED</button>
+                        <button class="@GetThemeClass("light")" @onclick="SetThemeLight">☀️ Light</button>
+                    </div>
+                </div>
+                <div class="theme-section"><span class="theme-lbl">Accent</span>
+                    <div class="accent-options">
+                        <button class="accent-dot pink @GetAccentClass("pink")" @onclick="SetAccentPink"></button>
+                        <button class="accent-dot blue @GetAccentClass("blue")" @onclick="SetAccentBlue"></button>
+                        <button class="accent-dot green @GetAccentClass("green")" @onclick="SetAccentGreen"></button>
+                        <button class="accent-dot orange @GetAccentClass("orange")" @onclick="SetAccentOrange"></button>
+                    </div>
+                </div>
+            </div>
+        }
         <button class="mobile-nav-action-btn logout-action" @onclick="OnLogout">🚪 Çıkış Yap</button>
     </div>
 

@@ -4614,10 +4614,140 @@ html {
     backdrop-filter: blur(4px);
 }
 
-/* On desktop, hide the sidebar completely */
+/* ========== MOBILE NOTIFICATION BUTTON ========== */
+.mobile-notif-btn {
+    display: none; /* hidden on desktop */
+}
+
+/* ========== NOTIFICATION PANEL (mobile-friendly, outside header) ========== */
+.notif-panel-mobile {
+    position: fixed;
+    top: 65px;
+    right: 12px;
+    width: min(340px, calc(100vw - 24px));
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 400;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    padding: 0;
+}
+.notif-panel-mobile .notif-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--border);
+}
+.notif-panel-mobile .notif-panel-header h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.notif-panel-mobile .notif-mark-all {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+}
+.notif-panel-mobile .notif-item {
+    padding: 12px 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.notif-panel-mobile .notif-item.unread {
+    background: rgba(233,69,144,0.06);
+}
+.notif-panel-mobile .notif-msg {
+    font-size: 13px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+.notif-panel-mobile .notif-time {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.notif-panel-mobile .notif-empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.mobile-notif-panel-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 399;
+    background: transparent;
+}
+
+/* ========== MOBILE THEME PANEL (inside sidebar) ========== */
+.mobile-theme-panel {
+    padding: 12px 20px 16px;
+    background: rgba(255,255,255,0.03);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+.mobile-theme-panel .theme-section {
+    margin-bottom: 12px;
+}
+.mobile-theme-panel .theme-lbl {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 8px;
+}
+.mobile-theme-panel .theme-options {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.mobile-theme-panel .theme-options button {
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    transition: all 0.2s;
+}
+.mobile-theme-panel .theme-options button:hover,
+.mobile-theme-panel .theme-options button.active-theme {
+    border-color: var(--accent);
+    background: rgba(233,69,144,0.1);
+}
+.mobile-theme-panel .accent-options {
+    display: flex;
+    gap: 10px;
+}
+.mobile-theme-panel .accent-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.mobile-theme-panel .accent-dot.active-accent {
+    border-color: #fff;
+    transform: scale(1.15);
+}
+
+/* On desktop, hide mobile-only elements */
 @media (min-width: 769px) {
     .mobile-nav-sidebar { display: none !important; }
     .mobile-nav-overlay { display: none !important; }
+    .mobile-notif-btn { display: none !important; }
 }
 
 /* ================================================================
@@ -4719,11 +4849,23 @@ html {
     /* Hide desktop nav on mobile */
     .nav-links-desktop { display: none !important; }
 
-    .header-right { gap: 4px; }
-    .user-info { display: none; }
-    .theme-switcher { display: none; }
-    .notif-container { display: none; }
-    .eq-bars { display: none; }
+    /* Show mobile notification bell */
+    .mobile-notif-btn {
+        display: flex;
+        align-items: center;
+        margin-left: auto;
+    }
+    .mobile-notif-btn .notif-bell {
+        padding: 10px;
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    .header-right { display: none !important; }
 
     /* ---- BOTTOM PLAYER MOBILE ---- */
     .bottom-player {
