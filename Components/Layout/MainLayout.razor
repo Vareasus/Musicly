@@ -620,7 +620,21 @@ else
 
     private async Task OnTogglePlay()
     {
-        await JS.InvokeVoidAsync("audioInterop.togglePlay");
+        if (!Player.IsPlaying)
+        {
+            // If no track is loaded yet, load the first one
+            if (Player.Duration <= 0 && Player.CurrentTime <= 0)
+            {
+                await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+            }
+            await JS.InvokeVoidAsync("audioInterop.play");
+            Player.SetPlaying(true);
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("audioInterop.pause");
+            Player.SetPlaying(false);
+        }
     }
 
     private async Task OnPrev()
@@ -733,8 +747,20 @@ else
 
     // ========= THEME =========
     private void ToggleThemePanel() => showThemePanel = !showThemePanel;
-    private void ToggleMobileNav() => showMobileNav = !showMobileNav;
-    private void CloseMobileNav() => showMobileNav = false;
+    private async Task ToggleMobileNav()
+    {
+        showMobileNav = !showMobileNav;
+        // Prevent body scroll when sidebar is open
+        if (showMobileNav)
+            await JS.InvokeVoidAsync("eval", "document.body.style.overflow='hidden'");
+        else
+            await JS.InvokeVoidAsync("eval", "document.body.style.overflow=''");
+    }
+    private async Task CloseMobileNav()
+    {
+        showMobileNav = false;
+        await JS.InvokeVoidAsync("eval", "document.body.style.overflow=''");
+    }
     private void ToggleThemePanelMobile() { showThemePanel = !showThemePanel; }
     private void ToggleNotifPanelMobile() { showMobileNav = false; showNotifPanel = !showNotifPanel; }
     private string GetThemeClass(string theme) => currentTheme == theme ? "active" : "";
