@@ -20,29 +20,36 @@
             <div class="auth-error">⚠️ @error</div>
         }
 
-        <form @onsubmit="OnLogin" @onsubmit:preventDefault>
-            <div class="auth-field">
-                <label>Username</label>
-                <input type="text" @bind="username" placeholder="Kullanıcı adı" />
-            </div>
-            <div class="auth-field">
-                <label>Password</label>
-                <input type="password" @bind="password" placeholder="Şifre" />
-            </div>
+        @if (!isReady)
+        {
+            <div class="auth-loading">Bağlantı kuruluyor...</div>
+        }
+        else
+        {
+            <form @onsubmit="OnLogin" @onsubmit:preventDefault>
+                <div class="auth-field">
+                    <label>Username</label>
+                    <input type="text" @bind="username" placeholder="Kullanıcı adı" />
+                </div>
+                <div class="auth-field">
+                    <label>Password</label>
+                    <input type="password" @bind="password" placeholder="Şifre" />
+                </div>
 
-            <div class="auth-remember">
-                <label class="remember-label">
-                    <input type="checkbox" @bind="rememberMe" />
-                    <span class="remember-check"></span>
-                    <span>Beni Hatırla</span>
-                </label>
-            </div>
+                <div class="auth-remember">
+                    <label class="remember-label">
+                        <input type="checkbox" @bind="rememberMe" />
+                        <span class="remember-check"></span>
+                        <span>Beni Hatırla</span>
+                    </label>
+                </div>
 
-            <button type="submit" class="auth-submit" disabled="@isLoading">
-                @if (isLoading) { <span class="auth-spinner"></span> }
-                else { <span>Sign In</span> }
-            </button>
-        </form>
+                <button type="submit" class="auth-submit" disabled="@isLoading">
+                    @if (isLoading) { <span class="auth-spinner"></span> }
+                    else { <span>Sign In</span> }
+                </button>
+            </form>
+        }
 
         <div class="auth-link">
             Don't have an account? <a href="/register">Create one</a>
@@ -56,6 +63,27 @@
     private string error = "";
     private bool isLoading;
     private bool rememberMe;
+    private bool isReady;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isReady = true;
+            StateHasChanged();
+
+            // Check if already logged in (Remember Me)
+            try
+            {
+                var authState = await AuthState.GetAuthenticationStateAsync();
+                if (authState.User.Identity?.IsAuthenticated == true)
+                {
+                    Nav.NavigateTo("/", forceLoad: true);
+                }
+            }
+            catch { }
+        }
+    }
 
     private async Task OnLogin()
     {
