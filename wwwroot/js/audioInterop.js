@@ -313,7 +313,12 @@ window.scrollLyricIntoView = function (index) {
     if (!container) return;
     const lines = container.querySelectorAll('.lyric-line');
     if (lines[index]) {
-        lines[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Scroll only within the lyrics container, NOT the page
+        const lineTop = lines[index].offsetTop;
+        const lineHeight = lines[index].offsetHeight;
+        const containerHeight = container.clientHeight;
+        const targetScroll = lineTop - (containerHeight / 2) + (lineHeight / 2);
+        container.scrollTo({ top: targetScroll, behavior: 'smooth' });
     }
 };
 
