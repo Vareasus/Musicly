@@ -470,7 +470,7 @@ else
 
             dotNetRef = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("audioInterop.init", dotNetRef);
-            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
             await JS.InvokeVoidAsync("audioInterop.initEq");
 
             // Restore theme from localStorage
@@ -583,7 +583,7 @@ else
         if (nextIdx >= 0)
         {
             Player.LoadTrack(nextIdx);
-            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
             await JS.InvokeVoidAsync("audioInterop.play");
         }
         else
@@ -625,7 +625,7 @@ else
             // If no track is loaded yet, load the first one
             if (Player.Duration <= 0 && Player.CurrentTime <= 0)
             {
-                await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+                await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
             }
             await JS.InvokeVoidAsync("audioInterop.play");
             Player.SetPlaying(true);

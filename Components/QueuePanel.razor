@@ -1,4 +1,4 @@
-﻿@inject Musicly.Services.MusicPlayerService Player
+@inject Musicly.Services.MusicPlayerService Player
 @inject IJSRuntime JS
 
 <div class="queue-panel @(Player.ShowQueue ? "open" : "")">
@@ -67,7 +67,7 @@
         {
             Player.RemoveFromQueue(track.Id);
             Player.LoadTrack(idx);
-            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
             await JS.InvokeVoidAsync("audioInterop.play");
         }
     }

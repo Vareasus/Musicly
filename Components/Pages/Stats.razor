@@ -1,4 +1,4 @@
-﻿@page "/stats"
+@page "/stats"
 @implements IDisposable
 @inject Musicly.Services.ListeningStatsService StatsService
 @inject Musicly.Services.CommentService CommentSvc
@@ -187,7 +187,7 @@
         if (idx >= 0)
         {
             Player.LoadTrack(idx);
-            _ = JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+            _ = JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
         }
     }
 

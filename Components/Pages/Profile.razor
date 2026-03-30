@@ -1,4 +1,4 @@
-﻿@page "/profile/{UserId:int}"
+@page "/profile/{UserId:int}"
 @implements IDisposable
 @inject Musicly.Services.AuthService Auth
 @inject Musicly.Services.CommentService CommentSvc
@@ -261,7 +261,7 @@
         if (idx >= 0)
         {
             Player.LoadTrack(idx);
-            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
             await JS.InvokeVoidAsync("audioInterop.play");
         }
     }

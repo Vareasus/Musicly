@@ -84,6 +84,21 @@ window.audioInterop = {
             stopTimeUpdates();
         });
 
+        // Media Session API - Lock screen controls
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.setActionHandler('play', function () {
+                if (audio) audio.play().catch(function () {});
+            });
+            navigator.mediaSession.setActionHandler('pause', function () {
+                if (audio) audio.pause();
+            });
+            navigator.mediaSession.setActionHandler('previoustrack', function () {
+                if (dotNetRef) dotNetRef.invokeMethodAsync('OnKeyboardAction', 'prev');
+            });
+            navigator.mediaSession.setActionHandler('nexttrack', function () {
+                if (dotNetRef) dotNetRef.invokeMethodAsync('OnKeyboardAction', 'next');
+            });
+        }
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             // Don't trigger if user is typing in an input
@@ -120,10 +135,23 @@ window.audioInterop = {
         });
     },
 
-    loadTrack: function (src) {
+    loadTrack: function (src, title, artist, coverUrl) {
         if (audio) {
             audio.src = src;
             audio.load();
+        }
+        // Update Media Session for lock screen controls
+        if ('mediaSession' in navigator) {
+            var artwork = [];
+            if (coverUrl) {
+                artwork = [{ src: coverUrl, sizes: '256x256', type: 'image/png' }];
+            }
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: title || 'Musicly',
+                artist: artist || '',
+                album: 'Musicly',
+                artwork: artwork
+            });
         }
     },
 

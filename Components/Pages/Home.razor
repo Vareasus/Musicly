@@ -180,7 +180,7 @@
                 if (idx >= 0)
                 {
                     Player.LoadTrack(idx);
-                    await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+                    await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
                     await JS.InvokeVoidAsync("audioInterop.play");
                 }
             }
@@ -190,7 +190,7 @@
     private async Task PlayTrack(int index)
     {
         Player.LoadTrack(index);
-        await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+        await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
         await JS.InvokeVoidAsync("audioInterop.play");
     }
 
