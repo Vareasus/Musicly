@@ -32,28 +32,26 @@ else
         <button class="hamburger-btn" @onclick="ToggleMobileNav" aria-label="Menu">
             <span></span><span></span><span></span>
         </button>
-        @if (showMobileNav)
-        {
-            <div class="mobile-nav-overlay" @onclick="ToggleMobileNav"></div>
-        }
-        <ul class="nav-links @(showMobileNav ? "mobile-open" : "")">
-            <li><NavLink href="/" Match="NavLinkMatch.All" @onclick="CloseMobileNav">Home</NavLink></li>
-            <li><NavLink href="/explore" @onclick="CloseMobileNav">Explore</NavLink></li>
-            <li><NavLink href="/stats" @onclick="CloseMobileNav">Stats</NavLink></li>
-            <li><NavLink href="/favorites" @onclick="CloseMobileNav">Favorites</NavLink></li>
-            <li><NavLink href="/radio" @onclick="CloseMobileNav">Radio</NavLink></li>
-            <li><NavLink href="/requests" @onclick="CloseMobileNav">Requests</NavLink></li>
-            @if (isAdmin)
-            {
-                <li class="admin-nav-item">
-                    <NavLink href="/admin" @onclick="CloseMobileNav">Admin</NavLink>
-                    @if (pendingRequestCount > 0)
-                    {
-                        <span class="admin-nav-badge">@pendingRequestCount</span>
-                    }
-                </li>
-            }
-        </ul>
+        <nav class="nav-links-desktop">
+            <ul class="nav-links">
+                <li><NavLink href="/" Match="NavLinkMatch.All">Home</NavLink></li>
+                <li><NavLink href="/explore">Explore</NavLink></li>
+                <li><NavLink href="/stats">Stats</NavLink></li>
+                <li><NavLink href="/favorites">Favorites</NavLink></li>
+                <li><NavLink href="/radio">Radio</NavLink></li>
+                <li><NavLink href="/requests">Requests</NavLink></li>
+                @if (isAdmin)
+                {
+                    <li class="admin-nav-item">
+                        <NavLink href="/admin">Admin</NavLink>
+                        @if (pendingRequestCount > 0)
+                        {
+                            <span class="admin-nav-badge">@pendingRequestCount</span>
+                        }
+                    </li>
+                }
+            </ul>
+        </nav>
         <div class="header-right">
             <!-- THEME SWITCHER -->
             <div class="theme-switcher">
@@ -132,9 +130,34 @@ else
         </div>
     </header>
 
+    @* ---- MOBILE NAV SIDEBAR (outside header for proper fixed positioning) ---- *@
+    @if (showMobileNav)
+    {
+        <div class="mobile-nav-overlay" @onclick="ToggleMobileNav"></div>
+    }
+    <div class="mobile-nav-sidebar @(showMobileNav ? "open" : "")">
+        <div class="mobile-nav-user">
+            <div class="mobile-nav-user-name">@currentUsername</div>
+            <div class="mobile-nav-user-role">@(isAdmin ? "Admin" : "Listener")</div>
+        </div>
+        <a href="/" class="mobile-nav-link @(Nav.Uri.EndsWith("/") || Nav.Uri.EndsWith(Nav.BaseUri) ? "active" : "")" @onclick="CloseMobileNav">🏠 Home</a>
+        <a href="/explore" class="mobile-nav-link @(Nav.Uri.Contains("/explore") ? "active" : "")" @onclick="CloseMobileNav">🔍 Explore</a>
+        <a href="/stats" class="mobile-nav-link @(Nav.Uri.Contains("/stats") ? "active" : "")" @onclick="CloseMobileNav">📊 Stats</a>
+        <a href="/favorites" class="mobile-nav-link @(Nav.Uri.Contains("/favorites") ? "active" : "")" @onclick="CloseMobileNav">❤️ Favorites</a>
+        <a href="/radio" class="mobile-nav-link @(Nav.Uri.Contains("/radio") ? "active" : "")" @onclick="CloseMobileNav">📻 Radio</a>
+        <a href="/requests" class="mobile-nav-link @(Nav.Uri.Contains("/requests") ? "active" : "")" @onclick="CloseMobileNav">📝 Requests</a>
+        @if (isAdmin)
+        {
+            <a href="/admin" class="mobile-nav-link @(Nav.Uri.Contains("/admin") ? "active" : "")" @onclick="CloseMobileNav">⚙️ Admin</a>
+        }
+        <div class="mobile-nav-divider"></div>
+        <button class="mobile-nav-action-btn" @onclick="ToggleThemePanelMobile">🎨 Tema Değiştir</button>
+        <button class="mobile-nav-action-btn" @onclick="ToggleNotifPanelMobile">🔔 Bildirimler @(unreadCount > 0 ? $"({unreadCount})" : "")</button>
+        <button class="mobile-nav-action-btn logout-action" @onclick="OnLogout">🚪 Çıkış Yap</button>
+    </div>
+
     <!-- PAGE CONTENT -->
     @Body
-
     <!-- BOTTOM PLAYER -->
     <div class="bottom-player">
         <!-- SEEK BAR - full width on top -->
@@ -680,6 +703,8 @@ else
     private void ToggleThemePanel() => showThemePanel = !showThemePanel;
     private void ToggleMobileNav() => showMobileNav = !showMobileNav;
     private void CloseMobileNav() => showMobileNav = false;
+    private void ToggleThemePanelMobile() { showMobileNav = false; showThemePanel = !showThemePanel; }
+    private void ToggleNotifPanelMobile() { showMobileNav = false; showNotifPanel = !showNotifPanel; }
     private string GetThemeClass(string theme) => currentTheme == theme ? "active" : "";
     private string GetAccentClass(string accent) => currentAccent == accent ? "active" : "";
 
