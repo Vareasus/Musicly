@@ -57,28 +57,45 @@ public class PrivateMessageService
     {
         if (string.IsNullOrWhiteSpace(content)) return false;
 
-        // Verify both users are allowed
-        using var db = await _dbFactory.CreateDbContextAsync();
-        var sender = await db.Users.FindAsync(senderId);
-        var receiver = await db.Users.FindAsync(receiverId);
-        if (sender == null || receiver == null) return false;
-
-        bool senderAllowed = sender.Role == "Admin" || sender.Username.Equals("hacer", StringComparison.OrdinalIgnoreCase);
-        bool receiverAllowed = receiver.Role == "Admin" || receiver.Username.Equals("hacer", StringComparison.OrdinalIgnoreCase);
-        if (!senderAllowed || !receiverAllowed) return false;
-
-        var message = new PrivateMessage
+        try
         {
-            SenderId = senderId,
-            ReceiverId = receiverId,
-            Content = content.Trim(),
-            SentAt = DateTime.UtcNow,
-            IsRead = false
-        };
+            using var db = await _dbFactory.CreateDbContextAsync();
+            var sender = await db.Users.FindAsync(senderId);
+            var receiver = await db.Users.FindAsync(receiverId);
+            if (sender == null || receiver == null)
+            {
+                Console.WriteLine($"[MSG] sender={sender?.Username ?? "NULL"} receiver={receiver?.Username ?? "NULL"}");
+                return false;
+            }
 
-        db.PrivateMessages.Add(message);
-        await db.SaveChangesAsync();
-        return true;
+            bool senderAllowed = sender.Role == "Admin" || sender.Username.Equals("hacer", StringComparison.OrdinalIgnoreCase);
+            bool receiverAllowed = receiver.Role == "Admin" || receiver.Username.Equals("hacer", StringComparison.OrdinalIgnoreCase);
+            if (!senderAllowed || !receiverAllowed)
+            {
+                Console.WriteLine($"[MSG] NOT ALLOWED: sender={sender.Username}({sender.Role}), receiver={receiver.Username}({receiver.Role})");
+                return false;
+            }
+
+            var message = new PrivateMessage
+            {
+                SenderId = senderId,
+                ReceiverId = receiverId,
+                Content = content.Trim(),
+                SentAt = DateTime.UtcNow,
+                IsRead = false
+            };
+
+            db.PrivateMessages.Add(message);
+            await db.SaveChangesAsync();
+            Console.WriteLine($"[MSG] SUCCESS: {sender.Username} -> {receiver.Username}: {content}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            var inner = ex.InnerException?.Message ?? "no inner";
+            Console.WriteLine($"[MSG] EXCEPTION: {ex.Message} | INNER: {inner}");
+            throw; // Re-throw so the UI can catch and display
+        }
     }
 
     /// <summary>
