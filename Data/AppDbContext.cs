@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Musicly.Models;
 using System.Security.Cryptography;
 using System.Text;
@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<TrackComment> TrackComments => Set<TrackComment>();
     public DbSet<CommentLike> CommentLikes => Set<CommentLike>();
     public DbSet<SongRequest> SongRequests => Set<SongRequest>();
+    public DbSet<PrivateMessage> PrivateMessages => Set<PrivateMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -102,6 +103,15 @@ public class AppDbContext : DbContext
             e.HasIndex(r => r.Status);
         });
 
+        // === PrivateMessage ===
+        modelBuilder.Entity<PrivateMessage>(e =>
+        {
+            e.HasOne(m => m.Sender).WithMany().HasForeignKey(m => m.SenderId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(m => m.Receiver).WithMany().HasForeignKey(m => m.ReceiverId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(m => new { m.SenderId, m.ReceiverId });
+            e.HasIndex(m => m.SentAt);
+        });
+
         // === SEED DATA ===
 
         // Admin user
@@ -113,6 +123,19 @@ public class AppDbContext : DbContext
             Email = "admin@musicly.com",
             PasswordHash = adminHash,
             Role = "Admin",
+            IsActive = true,
+            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+        });
+
+        // Hacer user
+        var hacerHash = HashPassword("Hacer123!");
+        modelBuilder.Entity<AppUser>().HasData(new AppUser
+        {
+            Id = 2,
+            Username = "hacer",
+            Email = "hacer@musicly.com",
+            PasswordHash = hacerHash,
+            Role = "User",
             IsActive = true,
             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         });

@@ -1,0 +1,238 @@
+@page "/messages"
+@implements IDisposable
+@inject Musicly.Services.PrivateMessageService MsgService
+@inject Musicly.Services.CustomAuthStateProvider AuthState
+@inject Musicly.Services.AuthService Auth
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<section class="messages-page">
+    @if (!hasAccess)
+    {
+        <div class="glass-card" style="text-align:center;padding:60px;">
+            <h3>🔒 Erişim Engellendi</h3>
+            <p style="color:var(--text-secondary);">Bu sayfa sadece özel kullanıcılar içindir.</p>
+        </div>
+    }
+    else if (!partnerExists)
+    {
+        <div class="glass-card" style="text-align:center;padding:60px;">
+            <div style="font-size:48px;margin-bottom:16px;">💬</div>
+            <h3>Sohbet Partneri Bekleniyor</h3>
+            <p style="color:var(--text-secondary);">@partnerWaitMessage</p>
+        </div>
+    }
+    else
+    {
+        <div class="chat-container">
+            <!-- CHAT HEADER -->
+            <div class="chat-header">
+                <div class="chat-header-left">
+                    <div class="chat-avatar">
+                        @if (!string.IsNullOrEmpty(partnerName))
+                        {
+                            @partnerName[0].ToString().ToUpper()
+                        }
+                    </div>
+                    <div class="chat-header-info">
+                        <h3 class="chat-partner-name">@partnerName</h3>
+                        <span class="chat-status">
+                            <span class="chat-status-dot"></span>
+                            Özel Sohbet
+                        </span>
+                    </div>
+                </div>
+                <div class="chat-header-right">
+                    <div class="chat-header-icon" title="Şifreli Mesajlaşma">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CHAT MESSAGES -->
+            <div class="chat-messages" id="chatMessagesContainer">
+                @if (messages.Count == 0)
+                {
+                    <div class="chat-empty">
+                        <div class="chat-empty-icon">💬</div>
+                        <h4>Henüz mesaj yok</h4>
+                        <p>İlk mesajınızı gönderin!</p>
+                    </div>
+                }
+                else
+                {
+                    string lastDate = "";
+                    foreach (var msg in messages)
+                    {
+                        var dateStr = msg.SentAt.ToLocalTime().ToString("dd MMMM yyyy");
+                        if (dateStr != lastDate)
+                        {
+                            lastDate = dateStr;
+                            <div class="chat-date-divider">
+                                <span>@dateStr</span>
+                            </div>
+                        }
+
+                        var isMine = msg.SenderId == currentUserId;
+                        <div class="chat-message @(isMine ? "sent" : "received")">
+                            @if (!isMine)
+                            {
+                                <div class="chat-msg-avatar">@(partnerName.Length > 0 ? partnerName[0].ToString().ToUpper() : "?")</div>
+                            }
+                            <div class="chat-bubble @(isMine ? "bubble-sent" : "bubble-received")">
+                                <p class="chat-msg-text">@msg.Content</p>
+                                <div class="chat-msg-meta">
+                                    <span class="chat-msg-time">@msg.SentAt.ToLocalTime().ToString("HH:mm")</span>
+                                    @if (isMine)
+                                    {
+                                        <span class="chat-msg-status @(msg.IsRead ? "read" : "")">
+                                            @(msg.IsRead ? "✓✓" : "✓")
+                                        </span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+            <!-- CHAT INPUT -->
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <textarea @bind="newMessage" @bind:event="oninput"
+                              @onkeydown="OnKeyDown"
+                              placeholder="Mesaj yaz..."
+                              class="chat-input"
+                              rows="1"
+                              id="chatInput"></textarea>
+                    <button class="chat-send-btn @(string.IsNullOrWhiteSpace(newMessage) ? "" : "active")"
+                            @onclick="SendMessage"
+                            disabled="@(string.IsNullOrWhiteSpace(newMessage) || isSending)"
+                            title="Gönder">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private int currentUserId;
+    private bool hasAccess;
+    private bool partnerExists;
+    private string partnerWaitMessage = "";
+    private int partnerId;
+    private string partnerName = "";
+    private List<Musicly.Models.PrivateMessage> messages = new();
+    private string newMessage = "";
+    private bool isSending;
+    private System.Threading.Timer? pollTimer;
+    private int lastMessageCount;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            currentUserId = await AuthState.GetCurrentUserIdAsync();
+            if (currentUserId <= 0) { Nav.NavigateTo("/login"); return; }
+
+            hasAccess = await MsgService.CanAccessMessagesAsync(currentUserId);
+            if (!hasAccess) { StateHasChanged(); return; }
+
+            var partner = await MsgService.GetChatPartnerAsync(currentUserId);
+            if (partner == null)
+            {
+                partnerExists = false;
+                // Determine which partner is missing
+                var currentUser = await Auth.GetUserAsync(currentUserId);
+                if (currentUser?.Role == "Admin")
+                    partnerWaitMessage = "\"hacer\" kullanıcısı henüz kayıt olmadı. Kayıt olduktan sonra mesajlaşma başlayacak.";
+                else
+                    partnerWaitMessage = "Admin kullanıcısı bulunamadı.";
+                StateHasChanged();
+                return;
+            }
+
+            partnerExists = true;
+            partnerId = partner.Value.PartnerId;
+            partnerName = partner.Value.PartnerName;
+
+            await LoadMessages();
+            StateHasChanged();
+
+            // Scroll to bottom after render
+            await Task.Delay(100);
+            await ScrollToBottom();
+
+            // Start polling for new messages every 3 seconds
+            pollTimer = new System.Threading.Timer(async _ =>
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadMessages();
+                    if (messages.Count != lastMessageCount)
+                    {
+                        lastMessageCount = messages.Count;
+                        StateHasChanged();
+                        await Task.Delay(50);
+                        await ScrollToBottom();
+                    }
+                });
+            }, null, 3000, 3000);
+        }
+    }
+
+    private async Task LoadMessages()
+    {
+        try
+        {
+            messages = await MsgService.GetConversationAsync(currentUserId, partnerId);
+            await MsgService.MarkAsReadAsync(currentUserId, partnerId);
+        }
+        catch { }
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(newMessage) || isSending) return;
+
+        isSending = true;
+        var sent = await MsgService.SendMessageAsync(currentUserId, partnerId, newMessage);
+        if (sent)
+        {
+            newMessage = "";
+            await LoadMessages();
+            lastMessageCount = messages.Count;
+            StateHasChanged();
+            await Task.Delay(50);
+            await ScrollToBottom();
+        }
+        isSending = false;
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SendMessage();
+        }
+    }
+
+    private async Task ScrollToBottom()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("eval",
+                "var el = document.getElementById('chatMessagesContainer'); if(el) el.scrollTop = el.scrollHeight;");
+        }
+        catch { }
+    }
+
+    public void Dispose()
+    {
+        pollTimer?.Dispose();
+    }
+}

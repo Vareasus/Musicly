@@ -69,6 +69,7 @@ builder.Services.AddScoped<CommentService>();
 builder.Services.AddScoped<SongRequestService>();
 builder.Services.AddScoped<AchievementService>();
 builder.Services.AddScoped<TrackUploadService>();
+builder.Services.AddScoped<PrivateMessageService>();
 
 var app = builder.Build();
 

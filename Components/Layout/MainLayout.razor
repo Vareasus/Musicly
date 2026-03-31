@@ -6,6 +6,7 @@
 @inject Musicly.Services.NotificationService NotifService
 @inject Musicly.Services.CommentService CommentSvc
 @inject Musicly.Services.SongRequestService ReqSvc
+@inject Musicly.Services.PrivateMessageService MsgSvc
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
@@ -50,6 +51,16 @@ else
                 <li><NavLink href="/favorites">Favorites</NavLink></li>
                 <li><NavLink href="/radio">Radio</NavLink></li>
                 <li><NavLink href="/requests">Requests</NavLink></li>
+                @if (canAccessMessages)
+                {
+                    <li class="admin-nav-item">
+                        <NavLink href="/messages">Mesajlar</NavLink>
+                        @if (unreadMsgCount > 0)
+                        {
+                            <span class="admin-nav-badge msg-badge">@unreadMsgCount</span>
+                        }
+                    </li>
+                }
                 @if (isAdmin)
                 {
                     <li class="admin-nav-item">
@@ -159,6 +170,16 @@ else
         <a href="/favorites" class="mobile-nav-link @(Nav.Uri.Contains("/favorites") ? "active" : "")" @onclick="CloseMobileNav">❤️ Favorites</a>
         <a href="/radio" class="mobile-nav-link @(Nav.Uri.Contains("/radio") ? "active" : "")" @onclick="CloseMobileNav">📻 Radio</a>
         <a href="/requests" class="mobile-nav-link @(Nav.Uri.Contains("/requests") ? "active" : "")" @onclick="CloseMobileNav">📝 Requests</a>
+        @if (canAccessMessages)
+        {
+            <a href="/messages" class="mobile-nav-link @(Nav.Uri.Contains("/messages") ? "active" : "")" @onclick="CloseMobileNav">
+                💬 Mesajlar
+                @if (unreadMsgCount > 0)
+                {
+                    <span class="mobile-nav-badge">@unreadMsgCount</span>
+                }
+            </a>
+        }
         @if (isAdmin)
         {
             <a href="/admin" class="mobile-nav-link @(Nav.Uri.Contains("/admin") ? "active" : "")" @onclick="CloseMobileNav">⚙️ Admin</a>
@@ -418,6 +439,10 @@ else
     // Admin pending requests
     private int pendingRequestCount;
 
+    // Private messages
+    private bool canAccessMessages;
+    private int unreadMsgCount;
+
     // Sleep Timer
     private bool showSleepModal;
     private DateTime? sleepEndTime;
@@ -462,6 +487,17 @@ else
             {
                 try { pendingRequestCount = await ReqSvc.GetPendingCountAsync(); } catch { }
             }
+
+            // Check private message access
+            try
+            {
+                canAccessMessages = await MsgSvc.CanAccessMessagesAsync(currentUserId);
+                if (canAccessMessages)
+                {
+                    unreadMsgCount = await MsgSvc.GetUnreadCountAsync(currentUserId);
+                }
+            }
+            catch { }
 
             Stats.SetCurrentUser(currentUserId);
             await Player.LoadTracksFromDbAsync();
