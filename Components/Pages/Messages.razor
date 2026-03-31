@@ -98,22 +98,19 @@
 
             <!-- CHAT INPUT -->
             <div class="chat-input-container">
-                <div class="chat-input-wrapper">
-                    <textarea @bind="newMessage" @bind:event="oninput"
-                              @onkeydown="OnKeyDown" @onkeydown:preventDefault="shouldPreventDefault"
-                              placeholder="Mesaj yaz..."
-                              class="chat-input"
-                              rows="1"
-                              id="chatInput"></textarea>
-                    <button class="chat-send-btn @(string.IsNullOrWhiteSpace(newMessage) ? "" : "active")"
-                            @onclick="SendMessage"
-                            disabled="@(string.IsNullOrWhiteSpace(newMessage) || isSending ? true : (bool?)null)"
+                <form @onsubmit="SendMessage" @onsubmit:preventDefault class="chat-input-wrapper">
+                    <input type="text" @bind="newMessage" @bind:event="oninput"
+                           placeholder="Mesaj yaz..."
+                           class="chat-input"
+                           autocomplete="off"
+                           id="chatInput" />
+                    <button type="submit" class="chat-send-btn @(string.IsNullOrWhiteSpace(newMessage) ? "" : "active")"
                             title="Gönder">
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
                             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                         </svg>
                     </button>
-                </div>
+                </form>
                 @if (!string.IsNullOrEmpty(sendError))
                 {
                     <div style="color:#f87171;font-size:13px;margin-top:8px;padding:0 8px;">@sendError</div>
@@ -236,21 +233,6 @@
         }
 
         isSending = false;
-    }
-
-    private bool shouldPreventDefault;
-
-    private async Task OnKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter" && !e.ShiftKey)
-        {
-            shouldPreventDefault = true;
-            await SendMessage();
-        }
-        else
-        {
-            shouldPreventDefault = false;
-        }
     }
 
     private async Task ScrollToBottom()
