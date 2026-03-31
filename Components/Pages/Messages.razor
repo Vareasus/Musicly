@@ -43,6 +43,18 @@
                     </div>
                 </div>
                 <div class="chat-header-right">
+                    @if (allPartners.Count > 1)
+                    {
+                        <div class="chat-partner-tabs">
+                            @foreach (var p in allPartners)
+                            {
+                                <button class="chat-tab @(p.PartnerId == partnerId ? "active" : "")"
+                                        @onclick="() => SwitchPartner(p.PartnerId, p.PartnerName)">
+                                    @p.PartnerName
+                                </button>
+                            }
+                        </div>
+                    }
                     <div class="chat-header-icon" title="Şifreli Mesajlaşma">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
                     </div>
@@ -127,6 +139,7 @@
     private string partnerWaitMessage = "";
     private int partnerId;
     private string partnerName = "";
+    private List<(int PartnerId, string PartnerName)> allPartners = new();
     private List<Musicly.Models.PrivateMessage> messages = new();
     private string newMessage = "";
     private bool isSending;
@@ -143,14 +156,13 @@
             hasAccess = await MsgService.CanAccessMessagesAsync(currentUserId);
             if (!hasAccess) { StateHasChanged(); return; }
 
-            var partner = await MsgService.GetChatPartnerAsync(currentUserId);
-            if (partner == null)
+            allPartners = await MsgService.GetAllChatPartnersAsync(currentUserId);
+            if (allPartners.Count == 0)
             {
                 partnerExists = false;
-                // Determine which partner is missing
                 var currentUser = await Auth.GetUserAsync(currentUserId);
                 if (currentUser?.Role == "Admin")
-                    partnerWaitMessage = "\"hacer\" kullanıcısı henüz kayıt olmadı. Kayıt olduktan sonra mesajlaşma başlayacak.";
+                    partnerWaitMessage = "Henüz özel mesaj izni olan kullanıcı bulunamadı.";
                 else
                     partnerWaitMessage = "Admin kullanıcısı bulunamadı.";
                 StateHasChanged();
@@ -158,13 +170,12 @@
             }
 
             partnerExists = true;
-            partnerId = partner.Value.PartnerId;
-            partnerName = partner.Value.PartnerName;
+            partnerId = allPartners[0].PartnerId;
+            partnerName = allPartners[0].PartnerName;
 
             await LoadMessages();
             StateHasChanged();
 
-            // Scroll to bottom after render
             await Task.Delay(100);
             await ScrollToBottom();
 
@@ -223,16 +234,29 @@
             {
                 newMessage = content;
                 sendError = "Mesaj gönderilemedi. Lütfen tekrar deneyin.";
-                Console.WriteLine($"SendMessage failed: senderId={currentUserId}, receiverId={partnerId}, content={content}");
             }
         }
         catch (Exception ex)
         {
             sendError = $"Hata: {ex.Message}";
-            Console.WriteLine($"SendMessage exception: {ex}");
         }
 
         isSending = false;
+    }
+
+    private async Task SwitchPartner(int newPartnerId, string newPartnerName)
+    {
+        partnerId = newPartnerId;
+        partnerName = newPartnerName;
+        messages = new();
+        lastMessageCount = 0;
+        StateHasChanged();
+
+        await LoadMessages();
+        lastMessageCount = messages.Count;
+        StateHasChanged();
+        await Task.Delay(50);
+        await ScrollToBottom();
     }
 
     private async Task ScrollToBottom()

@@ -8,46 +8,71 @@ public class PrivateMessageService
 {
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
 
+    // Allowed private message usernames (case-insensitive)
+    private static readonly string[] AllowedUsernames = { "hacer", "vareasus" };
+
     public PrivateMessageService(IDbContextFactory<AppDbContext> dbFactory)
     {
         _dbFactory = dbFactory;
     }
 
+    private bool IsAllowedUser(AppUser user)
+    {
+        return user.Role == "Admin" ||
+               AllowedUsernames.Any(u => u.Equals(user.Username, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>
-    /// Checks if a user is allowed to use private messaging (must be "hacer" username or Admin role).
+    /// Checks if a user is allowed to use private messaging.
     /// </summary>
     public async Task<bool> CanAccessMessagesAsync(int userId)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
         var user = await db.Users.FindAsync(userId);
         if (user == null) return false;
-        return user.Role == "Admin" || user.Username.Equals("hacer", StringComparison.OrdinalIgnoreCase);
+        return IsAllowedUser(user);
     }
 
     /// <summary>
-    /// Gets the chat partner ID for a given user (hacer gets admin, admin gets hacer).
+    /// Gets all chat partners for a given user.
+    /// Admin gets all allowed users; allowed users get Admin.
     /// </summary>
-    public async Task<(int PartnerId, string PartnerName)?> GetChatPartnerAsync(int currentUserId)
+    public async Task<List<(int PartnerId, string PartnerName)>> GetAllChatPartnersAsync(int currentUserId)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
         var currentUser = await db.Users.FindAsync(currentUserId);
-        if (currentUser == null) return null;
+        if (currentUser == null) return new();
 
-        AppUser? partner = null;
+        var partners = new List<(int, string)>();
 
         if (currentUser.Role == "Admin")
         {
-            // Admin's chat partner is "hacer"
-            partner = await db.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == "hacer");
+            // Admin sees all allowed users
+            var allowedUsers = await db.Users
+                .Where(u => AllowedUsernames.Contains(u.Username.ToLower()))
+                .ToListAsync();
+            foreach (var u in allowedUsers)
+                partners.Add((u.Id, u.Username));
         }
-        else if (currentUser.Username.Equals("hacer", StringComparison.OrdinalIgnoreCase))
+        else if (AllowedUsernames.Any(u => u.Equals(currentUser.Username, StringComparison.OrdinalIgnoreCase)))
         {
-            // Hacer's chat partner is the admin
-            partner = await db.Users.FirstOrDefaultAsync(u => u.Role == "Admin");
+            // Allowed user sees Admin
+            var admin = await db.Users.FirstOrDefaultAsync(u => u.Role == "Admin");
+            if (admin != null)
+                partners.Add((admin.Id, admin.Username));
         }
 
-        if (partner == null) return null;
-        return (partner.Id, partner.Username);
+        return partners;
+    }
+
+    /// <summary>
+    /// Gets the first chat partner (backward compatible).
+    /// </summary>
+    public async Task<(int PartnerId, string PartnerName)?> GetChatPartnerAsync(int currentUserId)
+    {
+        var partners = await GetAllChatPartnersAsync(currentUserId);
+        if (partners.Count == 0) return null;
+        return partners[0];
     }
 
     /// <summary>
@@ -68,9 +93,7 @@ public class PrivateMessageService
                 return false;
             }
 
-            bool senderAllowed = sender.Role == "Admin" || sender.Username.Equals("hacer", StringComparison.OrdinalIgnoreCase);
-            bool receiverAllowed = receiver.Role == "Admin" || receiver.Username.Equals("hacer", StringComparison.OrdinalIgnoreCase);
-            if (!senderAllowed || !receiverAllowed)
+            if (!IsAllowedUser(sender) || !IsAllowedUser(receiver))
             {
                 Console.WriteLine($"[MSG] NOT ALLOWED: sender={sender.Username}({sender.Role}), receiver={receiver.Username}({receiver.Role})");
                 return false;
@@ -94,7 +117,7 @@ public class PrivateMessageService
         {
             var inner = ex.InnerException?.Message ?? "no inner";
             Console.WriteLine($"[MSG] EXCEPTION: {ex.Message} | INNER: {inner}");
-            throw; // Re-throw so the UI can catch and display
+            throw;
         }
     }
 
