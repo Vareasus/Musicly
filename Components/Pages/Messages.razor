@@ -100,7 +100,7 @@
             <div class="chat-input-container">
                 <div class="chat-input-wrapper">
                     <textarea @bind="newMessage" @bind:event="oninput"
-                              @onkeydown="OnKeyDown"
+                              @onkeydown="OnKeyDown" @onkeydown:preventDefault="shouldPreventDefault"
                               placeholder="Mesaj yaz..."
                               class="chat-input"
                               rows="1"
@@ -114,6 +114,10 @@
                         </svg>
                     </button>
                 </div>
+                @if (!string.IsNullOrEmpty(sendError))
+                {
+                    <div style="color:#f87171;font-size:13px;margin-top:8px;padding:0 8px;">@sendError</div>
+                }
             </div>
         </div>
     }
@@ -195,29 +199,57 @@
         catch { }
     }
 
+    private string sendError = "";
+
     private async Task SendMessage()
     {
         if (string.IsNullOrWhiteSpace(newMessage) || isSending) return;
 
         isSending = true;
-        var sent = await MsgService.SendMessageAsync(currentUserId, partnerId, newMessage);
-        if (sent)
+        sendError = "";
+        StateHasChanged();
+
+        try
         {
+            var content = newMessage;
             newMessage = "";
-            await LoadMessages();
-            lastMessageCount = messages.Count;
-            StateHasChanged();
-            await Task.Delay(50);
-            await ScrollToBottom();
+            var sent = await MsgService.SendMessageAsync(currentUserId, partnerId, content);
+            if (sent)
+            {
+                await LoadMessages();
+                lastMessageCount = messages.Count;
+                StateHasChanged();
+                await Task.Delay(50);
+                await ScrollToBottom();
+            }
+            else
+            {
+                newMessage = content;
+                sendError = "Mesaj gönderilemedi. Lütfen tekrar deneyin.";
+                Console.WriteLine($"SendMessage failed: senderId={currentUserId}, receiverId={partnerId}, content={content}");
+            }
         }
+        catch (Exception ex)
+        {
+            sendError = $"Hata: {ex.Message}";
+            Console.WriteLine($"SendMessage exception: {ex}");
+        }
+
         isSending = false;
     }
+
+    private bool shouldPreventDefault;
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Enter" && !e.ShiftKey)
         {
+            shouldPreventDefault = true;
             await SendMessage();
+        }
+        else
+        {
+            shouldPreventDefault = false;
         }
     }
 
