@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Musicly.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260331073426_AddHacerUser")]
-    partial class AddHacerUser
+    [Migration("20260331075357_AddPrivateMessagesClean")]
+    partial class AddPrivateMessagesClean
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -84,16 +84,6 @@ namespace Musicly.Migrations
                             PasswordHash = "PrP+ZrMeO00Q+nC1ytSccRIpSvauTkdqHEBRVdRaoSE=",
                             Role = "Admin",
                             Username = "admin"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "hacer@musicly.com",
-                            IsActive = true,
-                            PasswordHash = "lnSQxP/Kxl6dK4NAFRgB8A75Z4d2fyRwDIzVVxWTlWI=",
-                            Role = "User",
-                            Username = "hacer"
                         });
                 });
 

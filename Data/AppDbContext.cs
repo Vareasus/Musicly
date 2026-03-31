@@ -127,19 +127,6 @@ public class AppDbContext : DbContext
             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         });
 
-        // Hacer user
-        var hacerHash = HashPassword("Hacer123!");
-        modelBuilder.Entity<AppUser>().HasData(new AppUser
-        {
-            Id = 2,
-            Username = "hacer",
-            Email = "hacer@musicly.com",
-            PasswordHash = hacerHash,
-            Role = "User",
-            IsActive = true,
-            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-        });
-
         // Seed tracks
         var seedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         modelBuilder.Entity<DbTrack>().HasData(
