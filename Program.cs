@@ -74,6 +74,7 @@ builder.Services.AddHttpClient<YouTubeService>();
 builder.Services.AddScoped<YouTubeService>();
 builder.Services.AddHttpClient<LyricsService>();
 builder.Services.AddScoped<LyricsService>();
+builder.Services.AddSingleton<LocalizationService>();
 
 var app = builder.Build();
 

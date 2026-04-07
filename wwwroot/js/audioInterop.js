@@ -415,6 +415,141 @@ window.audioInterop.setEq = function (bass, mid, treble) {
     if (trebleFilter) trebleFilter.gain.value = treble;
 };
 
+// ===== AUDIO VISUALIZER =====
+let analyserNode = null;
+let visualizerCanvas = null;
+let visualizerCtx = null;
+let visualizerRunning = false;
+let visualizerAnimId = null;
+
+window.audioInterop.initVisualizer = function (canvasId) {
+    visualizerCanvas = document.getElementById(canvasId);
+    if (!visualizerCanvas) return;
+    visualizerCtx = visualizerCanvas.getContext('2d');
+
+    try {
+        if (!audioCtx || !sourceNode) return;
+
+        // Create analyser if not exists
+        if (!analyserNode) {
+            analyserNode = audioCtx.createAnalyser();
+            analyserNode.fftSize = 128;
+            analyserNode.smoothingTimeConstant = 0.8;
+
+            // Insert analyser into the chain: treble -> analyser -> destination
+            if (trebleFilter) {
+                trebleFilter.disconnect();
+                trebleFilter.connect(analyserNode);
+                analyserNode.connect(audioCtx.destination);
+            } else {
+                sourceNode.connect(analyserNode);
+                analyserNode.connect(audioCtx.destination);
+            }
+        }
+
+        visualizerRunning = true;
+        drawVisualizer();
+    } catch (e) {
+        console.warn('Visualizer init failed:', e);
+    }
+};
+
+window.audioInterop.stopVisualizer = function () {
+    visualizerRunning = false;
+    if (visualizerAnimId) {
+        cancelAnimationFrame(visualizerAnimId);
+        visualizerAnimId = null;
+    }
+};
+
+function drawVisualizer() {
+    if (!visualizerRunning || !analyserNode || !visualizerCtx || !visualizerCanvas) return;
+
+    visualizerAnimId = requestAnimationFrame(drawVisualizer);
+
+    var bufferLength = analyserNode.frequencyBinCount;
+    var dataArray = new Uint8Array(bufferLength);
+    analyserNode.getByteFrequencyData(dataArray);
+
+    var canvas = visualizerCanvas;
+    var ctx = visualizerCtx;
+    var W = canvas.width = canvas.offsetWidth * (window.devicePixelRatio || 1);
+    var H = canvas.height = canvas.offsetHeight * (window.devicePixelRatio || 1);
+
+    ctx.clearRect(0, 0, W, H);
+
+    var barCount = Math.min(bufferLength, 64);
+    var barWidth = (W / barCount) * 0.7;
+    var gap = (W / barCount) * 0.3;
+    var x = 0;
+
+    // Get accent color from CSS
+    var accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e94590';
+
+    for (var i = 0; i < barCount; i++) {
+        var barHeight = (dataArray[i] / 255) * H * 0.9;
+        if (barHeight < 2) barHeight = 2;
+
+        // Gradient from accent to secondary
+        var gradient = ctx.createLinearGradient(0, H, 0, H - barHeight);
+        gradient.addColorStop(0, accentColor);
+        gradient.addColorStop(0.5, accentColor + 'cc');
+        gradient.addColorStop(1, accentColor + '44');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.roundRect(x, H - barHeight, barWidth, barHeight, [3, 3, 0, 0]);
+        ctx.fill();
+
+        // Reflection
+        ctx.fillStyle = accentColor + '15';
+        ctx.fillRect(x, H, barWidth, barHeight * 0.2);
+
+        x += barWidth + gap;
+    }
+}
+
+// ===== SHARE =====
+window.audioInterop.shareTrack = function (title, artist, url) {
+    var shareData = {
+        title: title + ' - ' + artist,
+        text: '🎵 ' + title + ' by ' + artist + ' on Musicly',
+        url: url || window.location.href
+    };
+
+    if (navigator.share) {
+        navigator.share(shareData).catch(function () {});
+    } else {
+        // Fallback: copy to clipboard
+        var text = shareData.text + '\n' + shareData.url;
+        navigator.clipboard.writeText(text).then(function () {
+            // Show a brief toast
+            showToast('📋 Link kopyalandı!');
+        }).catch(function () {});
+    }
+};
+
+function showToast(message) {
+    var existing = document.getElementById('musicly-toast');
+    if (existing) existing.remove();
+
+    var toast = document.createElement('div');
+    toast.id = 'musicly-toast';
+    toast.textContent = message;
+    toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.12);backdrop-filter:blur(20px);color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:500;z-index:10000;animation:toastIn 0.3s ease;border:1px solid rgba(255,255,255,0.1);';
+    document.body.appendChild(toast);
+
+    setTimeout(function () {
+        toast.style.animation = 'toastOut 0.3s ease forwards';
+        setTimeout(function () { toast.remove(); }, 300);
+    }, 2000);
+}
+
+// Toast animations
+var toastStyle = document.createElement('style');
+toastStyle.textContent = '@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}@keyframes toastOut{from{opacity:1;transform:translateX(-50%) translateY(0)}to{opacity:0;transform:translateX(-50%) translateY(20px)}}';
+document.head.appendChild(toastStyle);
+
 // ===== CROSSFADE =====
 let crossfadeDuration = 0;
 
