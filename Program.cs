@@ -72,6 +72,8 @@ builder.Services.AddScoped<TrackUploadService>();
 builder.Services.AddScoped<PrivateMessageService>();
 builder.Services.AddHttpClient<YouTubeService>();
 builder.Services.AddScoped<YouTubeService>();
+builder.Services.AddHttpClient<LyricsService>();
+builder.Services.AddScoped<LyricsService>();
 
 var app = builder.Build();
 

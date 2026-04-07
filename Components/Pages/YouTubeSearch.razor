@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject Musicly.Services.YouTubeService YtService
 @inject Musicly.Services.MusicPlayerService Player
+@inject Musicly.Services.LyricsService LyricsService
 @inject IJSRuntime JS
 
 <section class="explore-page">
@@ -178,6 +179,23 @@
         // Tell JS to load and play via YouTube IFrame Player
         await JS.InvokeVoidAsync("audioInterop.loadYouTubeTrack", 
             result.VideoId, result.Title, result.ChannelName, result.ThumbnailUrl);
+
+        // Fetch lyrics in background
+        _ = FetchLyricsAsync(result.Title, result.ChannelName);
+    }
+
+    private async Task FetchLyricsAsync(string title, string artist)
+    {
+        try
+        {
+            var lyrics = await LyricsService.GetLyricsAsync(title, artist);
+            if (lyrics.Count > 0 && Player.CurrentTrack.IsYouTube)
+            {
+                Player.CurrentTrack.Lyrics = lyrics;
+                Player.NotifyStateChanged();
+            }
+        }
+        catch { }
     }
 
     public void Dispose()

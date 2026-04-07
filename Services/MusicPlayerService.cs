@@ -320,7 +320,7 @@ public class MusicPlayerService
         NotifyStateChanged();
     }
 
-    private void NotifyStateChanged() => OnStateChanged?.Invoke();
+    public void NotifyStateChanged() => OnStateChanged?.Invoke();
 
     // --- Explore & Radio helpers ---
     public List<string> GetAllGenres() => Tracks.Select(t => t.Genre).Distinct().ToList();

@@ -8,6 +8,7 @@
 @inject Musicly.Services.SongRequestService ReqSvc
 @inject Musicly.Services.PrivateMessageService MsgSvc
 @inject NavigationManager Nav
+@inject Musicly.Services.LyricsService LyricsService
 @inject IJSRuntime JS
 
 @if (!isAuthenticated)
@@ -710,6 +711,8 @@ else
         if (track.IsYouTube && !string.IsNullOrEmpty(track.YouTubeVideoId))
         {
             await JS.InvokeVoidAsync("audioInterop.loadYouTubeTrack", track.YouTubeVideoId, track.Title, track.Artist, track.CoverImage);
+            // Fetch lyrics in background
+            _ = FetchLyricsForCurrentTrack();
         }
         else
         {
@@ -717,6 +720,22 @@ else
             await JS.InvokeVoidAsync("audioInterop.switchToAudio");
             await JS.InvokeVoidAsync("audioInterop.loadTrack", track.Src, track.Title, track.Artist, track.CoverImage);
         }
+    }
+
+    private async Task FetchLyricsForCurrentTrack()
+    {
+        try
+        {
+            var track = Player.CurrentTrack;
+            if (!track.IsYouTube) return;
+            var lyrics = await LyricsService.GetLyricsAsync(track.Title, track.Artist);
+            if (lyrics.Count > 0 && Player.CurrentTrack.IsYouTube && Player.CurrentTrack.YouTubeVideoId == track.YouTubeVideoId)
+            {
+                Player.CurrentTrack.Lyrics = lyrics;
+                Player.NotifyStateChanged();
+            }
+        }
+        catch { }
     }
 
     private void OnShuffle() => Player.ToggleShuffle();
