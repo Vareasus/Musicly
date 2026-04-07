@@ -263,11 +263,18 @@ window.initSeekBar = function (containerId) {
     }
 
     function seekFromEvent(clientX) {
-        if (!audio || !audio.duration) return;
         const rect = container.getBoundingClientRect();
         const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
         applyVisual(pct);
-        audio.currentTime = pct * audio.duration;
+        
+        if (activePlayer === 'youtube' && ytPlayer && ytReady) {
+            var dur = ytPlayer.getDuration();
+            if (dur > 0) {
+                ytPlayer.seekTo(pct * dur, true);
+            }
+        } else if (audio && audio.duration) {
+            audio.currentTime = pct * audio.duration;
+        }
     }
 
     container.addEventListener('mousedown', (e) => {
@@ -311,12 +318,18 @@ window.initVolumeBar = function (elementId, fillId) {
     if (!el) return;
 
     function handleVolume(e) {
-        if (!audio) return;
         const rect = el.getBoundingClientRect();
         const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        audio.volume = pct;
+        if (audio) {
+            audio.volume = pct;
+        }
         savedVolume = pct;
         if (fill) fill.style.width = (pct * 100) + '%';
+        
+        if (activePlayer === 'youtube' && ytPlayer && ytReady) {
+            ytVolume = Math.round(pct * 100);
+            ytPlayer.setVolume(ytVolume);
+        }
     }
 
     el.addEventListener('click', handleVolume);
@@ -482,19 +495,35 @@ document.addEventListener('keydown', function (e) {
             break;
         case 'ArrowUp':
             e.preventDefault();
+            if (activePlayer === 'youtube' && ytPlayer && ytReady) {
+                ytVolume = Math.min(100, ytVolume + 5);
+                ytPlayer.setVolume(ytVolume);
+            }
             if (audio) audio.volume = Math.min(1, audio.volume + 0.05);
             break;
         case 'ArrowDown':
             e.preventDefault();
+            if (activePlayer === 'youtube' && ytPlayer && ytReady) {
+                ytVolume = Math.max(0, ytVolume - 5);
+                ytPlayer.setVolume(ytVolume);
+            }
             if (audio) audio.volume = Math.max(0, audio.volume - 0.05);
             break;
         case 'ArrowLeft':
             e.preventDefault();
-            if (audio) audio.currentTime = Math.max(0, audio.currentTime - 5);
+            if (activePlayer === 'youtube' && ytPlayer && ytReady) {
+                ytPlayer.seekTo(Math.max(0, ytPlayer.getCurrentTime() - 5), true);
+            } else if (audio) {
+                audio.currentTime = Math.max(0, audio.currentTime - 5);
+            }
             break;
         case 'ArrowRight':
             e.preventDefault();
-            if (audio) audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5);
+            if (activePlayer === 'youtube' && ytPlayer && ytReady) {
+                ytPlayer.seekTo(Math.min(ytPlayer.getDuration() || 0, ytPlayer.getCurrentTime() + 5), true);
+            } else if (audio) {
+                audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5);
+            }
             break;
     }
 });
@@ -530,21 +559,30 @@ window.audioInterop.downloadTrack = function (src, filename) {
 // Audio play/pause events notify Blazor of state changes automatically.
 document.addEventListener('click', function(e) {
     var playBtn = e.target.closest('.bottom-play-btn, .play-btn');
-    if (!playBtn || !audio) return;
+    if (!playBtn) return;
     
     // Resume AudioContext if suspended (for equalizer)
     if (typeof audioCtx !== 'undefined' && audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
     
-    if (audio.paused) {
-        audio.play().catch(function(err) {
-            console.warn('Play blocked:', err.message);
-            pendingPlay = true;
-        });
-    } else {
-        audio.pause();
-        pendingPlay = false;
+    if (activePlayer === 'youtube' && ytPlayer && ytReady) {
+        var state = ytPlayer.getPlayerState();
+        if (state === YT.PlayerState.PLAYING) {
+            ytPlayer.pauseVideo();
+        } else {
+            ytPlayer.playVideo();
+        }
+    } else if (audio) {
+        if (audio.paused) {
+            audio.play().catch(function(err) {
+                console.warn('Play blocked:', err.message);
+                pendingPlay = true;
+            });
+        } else {
+            audio.pause();
+            pendingPlay = false;
+        }
     }
 });
 
