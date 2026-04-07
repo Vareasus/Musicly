@@ -1,0 +1,187 @@
+@page "/youtube"
+@implements IDisposable
+@inject Musicly.Services.YouTubeService YtService
+@inject Musicly.Services.MusicPlayerService Player
+@inject IJSRuntime JS
+
+<section class="explore-page">
+    <div class="explore-header">
+        <h1>YouTube <span>Music</span></h1>
+        <p>Search and play millions of songs from YouTube</p>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="explore-search-container">
+        <div class="explore-search">
+            <svg class="search-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+            </svg>
+            <input type="text" placeholder="Search for songs, artists..." 
+                   @bind="searchQuery" @bind:event="oninput"
+                   @onkeydown="OnSearchKeyDown" />
+            @if (!string.IsNullOrEmpty(searchQuery))
+            {
+                <button class="search-clear" @onclick="ClearSearch">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </button>
+            }
+        </div>
+        <button class="yt-search-btn" @onclick="DoSearch" disabled="@isSearching">
+            @(isSearching ? "Searching..." : "🔍 Search")
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(searchError))
+    {
+        <div class="glass-card" style="text-align:center;padding:24px;margin:16px 0;">
+            <p style="color:var(--text-secondary);">@searchError</p>
+        </div>
+    }
+
+    <!-- SEARCH RESULTS -->
+    @if (searchResults.Count > 0)
+    {
+        <div class="explore-section">
+            <h2>Search Results (@searchResults.Count)</h2>
+            <div class="explore-track-list">
+                @foreach (var result in searchResults)
+                {
+                    var isActive = Player.CurrentTrack.IsYouTube 
+                                   && Player.CurrentTrack.YouTubeVideoId == result.VideoId;
+                    
+                    <div class="explore-track-item @(isActive ? "active-track" : "")" 
+                         @onclick="() => OnPlayYouTube(result)">
+                        <div class="explore-track-art yt-thumb">
+                            <img src="@result.ThumbnailUrl" alt="@result.Title" 
+                                 style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" />
+                            @if (isActive && Player.IsPlaying)
+                            {
+                                <div class="yt-playing-overlay">
+                                    <div class="track-eq">
+                                        <span></span><span></span><span></span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div class="explore-track-info">
+                            <div class="explore-track-title">@result.Title</div>
+                            <div class="explore-track-meta">@result.ChannelName</div>
+                        </div>
+                        <span class="explore-track-mood">@result.Duration</span>
+                        <span class="explore-track-genre-badge" 
+                              style="background: linear-gradient(135deg, #ff0000, #cc0000);">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="#fff" style="vertical-align:middle;margin-right:2px;">
+                                <path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22.97.22 1.49 0 3.41-2.72 6.19-6.06 6.19H9.34C5.99 14.85 3.28 12.07 3.28 8.66c0-3.41 2.72-6.19 6.06-6.19h6.72c3.34 0 6.06 2.78 6.06 6.19 0 .52-.09 1.02-.22 1.49h.22l-.56-.16z"/>
+                            </svg>
+                            YouTube
+                        </span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else if (hasSearched && !isSearching)
+    {
+        <div class="glass-card" style="text-align:center;padding:40px;margin:16px 0;">
+            <span style="font-size:48px;">🔍</span>
+            <p style="color:var(--text-secondary);margin-top:12px;">No results found. Try a different search.</p>
+        </div>
+    }
+    else if (!hasSearched)
+    {
+        <div class="glass-card" style="text-align:center;padding:40px;margin:16px 0;">
+            <span style="font-size:48px;">🎵</span>
+            <p style="color:var(--text-secondary);margin-top:12px;">Search for any song to start listening!</p>
+            <div class="yt-suggestions">
+                <button class="yt-suggestion-chip" @onclick='() => QuickSearch("Pop Hits 2026")'>🎤 Pop Hits</button>
+                <button class="yt-suggestion-chip" @onclick='() => QuickSearch("Chill Lofi")'>🌊 Lo-Fi Chill</button>
+                <button class="yt-suggestion-chip" @onclick='() => QuickSearch("Rock Classics")'>🎸 Rock Classics</button>
+                <button class="yt-suggestion-chip" @onclick='() => QuickSearch("Turkish Pop")'>🇹🇷 Turkish Pop</button>
+                <button class="yt-suggestion-chip" @onclick='() => QuickSearch("EDM Dance")'>⚡ EDM</button>
+                <button class="yt-suggestion-chip" @onclick='() => QuickSearch("R&B Soul")'>💜 R&B</button>
+                <button class="yt-suggestion-chip" @onclick='() => QuickSearch("Jazz Smooth")'>🎷 Jazz</button>
+                <button class="yt-suggestion-chip" @onclick='() => QuickSearch("Hip Hop Rap")'>🔥 Hip Hop</button>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private string searchQuery = "";
+    private List<Musicly.Models.YouTubeSearchResult> searchResults = new();
+    private bool isSearching;
+    private bool hasSearched;
+    private string searchError = "";
+
+    protected override void OnInitialized()
+    {
+        Player.OnStateChanged += StateChanged;
+    }
+
+    private void StateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task OnSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await DoSearch();
+        }
+    }
+
+    private async Task DoSearch()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery)) return;
+        
+        isSearching = true;
+        searchError = "";
+        hasSearched = true;
+        StateHasChanged();
+
+        try
+        {
+            searchResults = await YtService.SearchAsync(searchQuery, 15);
+            if (searchResults.Count == 0)
+            {
+                searchError = "";
+            }
+        }
+        catch (Exception ex)
+        {
+            searchError = $"Search failed: {ex.Message}";
+            searchResults = new();
+        }
+
+        isSearching = false;
+    }
+
+    private async Task QuickSearch(string query)
+    {
+        searchQuery = query;
+        await DoSearch();
+    }
+
+    private void ClearSearch()
+    {
+        searchQuery = "";
+        searchResults = new();
+        hasSearched = false;
+        searchError = "";
+    }
+
+    private async Task OnPlayYouTube(Musicly.Models.YouTubeSearchResult result)
+    {
+        // Load the YouTube track in MusicPlayerService
+        Player.LoadYouTubeTrack(result);
+        
+        // Tell JS to load and play via YouTube IFrame Player
+        await JS.InvokeVoidAsync("audioInterop.loadYouTubeTrack", 
+            result.VideoId, result.Title, result.ChannelName, result.ThumbnailUrl);
+    }
+
+    public void Dispose()
+    {
+        Player.OnStateChanged -= StateChanged;
+    }
+}

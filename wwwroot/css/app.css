@@ -5888,3 +5888,99 @@ body { max-width: 100vw; overflow-x: hidden; }
     .queue-panel, .comments-panel, .modal-overlay { display: none !important; }
     .main-content { padding-bottom: 20px !important; }
 }
+
+/* ================================================================
+   YOUTUBE SEARCH PAGE
+================================================================ */
+.yt-search-btn {
+    background: linear-gradient(135deg, #ff0000, #cc0000);
+    color: #fff;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(255, 0, 0, 0.2);
+}
+
+.yt-search-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(255, 0, 0, 0.35);
+}
+
+.yt-search-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.yt-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.yt-suggestion-chip {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: 'Outfit', sans-serif;
+}
+
+.yt-suggestion-chip:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.yt-thumb {
+    position: relative;
+    overflow: hidden;
+}
+
+.yt-playing-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: inherit;
+}
+
+/* YouTube badge in track list */
+.explore-track-genre-badge svg {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+@media (max-width: 768px) {
+    .yt-search-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 14px;
+    }
+
+    .yt-suggestions {
+        gap: 8px;
+    }
+
+    .yt-suggestion-chip {
+        padding: 8px 14px;
+        font-size: 12px;
+    }
+}

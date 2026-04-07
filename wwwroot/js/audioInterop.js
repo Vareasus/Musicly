@@ -564,3 +564,296 @@ document.addEventListener('click', function(e) {
     };
     audio.addEventListener('loadeddata', onLoaded);
 });
+
+// ===== YOUTUBE IFRAME PLAYER =====
+let ytPlayer = null;
+let ytReady = false;
+let ytApiLoaded = false;
+let activePlayer = 'audio'; // 'audio' or 'youtube'
+let ytTimeInterval = null;
+let ytVolume = 70; // 0-100
+
+// Load YouTube IFrame API
+function loadYouTubeApi() {
+    if (ytApiLoaded) return;
+    ytApiLoaded = true;
+    var tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    var firstScript = document.getElementsByTagName('script')[0];
+    firstScript.parentNode.insertBefore(tag, firstScript);
+}
+
+// Called by YouTube API when ready
+window.onYouTubeIframeAPIReady = function() {
+    var container = document.getElementById('yt-player-container');
+    if (!container) {
+        // Create container if not exists
+        container = document.createElement('div');
+        container.id = 'yt-player-container';
+        container.style.cssText = 'position:fixed;bottom:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1;';
+        document.body.appendChild(container);
+        
+        var playerDiv = document.createElement('div');
+        playerDiv.id = 'yt-player';
+        container.appendChild(playerDiv);
+    }
+    
+    ytPlayer = new YT.Player('yt-player', {
+        height: '1',
+        width: '1',
+        playerVars: {
+            autoplay: 0,
+            controls: 0,
+            disablekb: 1,
+            fs: 0,
+            modestbranding: 1,
+            rel: 0,
+            showinfo: 0,
+            origin: window.location.origin
+        },
+        events: {
+            onReady: function() {
+                ytReady = true;
+                ytPlayer.setVolume(ytVolume);
+                console.log('YouTube player ready');
+            },
+            onStateChange: function(event) {
+                if (activePlayer !== 'youtube' || !dotNetRef) return;
+                
+                switch (event.data) {
+                    case YT.PlayerState.PLAYING:
+                        dotNetRef.invokeMethodAsync('OnPlayStateChanged', true);
+                        startYtTimeUpdates();
+                        // Update duration
+                        var dur = ytPlayer.getDuration();
+                        if (dur > 0) {
+                            dotNetRef.invokeMethodAsync('OnDurationChanged', dur);
+                        }
+                        break;
+                    case YT.PlayerState.PAUSED:
+                        dotNetRef.invokeMethodAsync('OnPlayStateChanged', false);
+                        stopYtTimeUpdates();
+                        break;
+                    case YT.PlayerState.ENDED:
+                        stopYtTimeUpdates();
+                        dotNetRef.invokeMethodAsync('OnTrackEnded');
+                        break;
+                }
+            },
+            onError: function(event) {
+                console.warn('YouTube player error:', event.data);
+            }
+        }
+    });
+};
+
+function startYtTimeUpdates() {
+    stopYtTimeUpdates();
+    ytTimeInterval = setInterval(function() {
+        if (ytPlayer && dotNetRef && activePlayer === 'youtube') {
+            try {
+                var currentTime = ytPlayer.getCurrentTime();
+                dotNetRef.invokeMethodAsync('OnTimeUpdate', currentTime);
+            } catch(e) {}
+        }
+    }, 250);
+}
+
+function stopYtTimeUpdates() {
+    if (ytTimeInterval) {
+        clearInterval(ytTimeInterval);
+        ytTimeInterval = null;
+    }
+}
+
+window.audioInterop.loadYouTubeTrack = function(videoId, title, artist, thumbnailUrl) {
+    // Load YouTube API if not loaded
+    if (!ytApiLoaded) {
+        loadYouTubeApi();
+    }
+    
+    // Pause regular audio
+    if (audio) {
+        audio.pause();
+        audio.src = '';
+    }
+    stopTimeUpdates();
+    
+    activePlayer = 'youtube';
+    
+    // Update Media Session
+    if ('mediaSession' in navigator) {
+        var artwork = [];
+        if (thumbnailUrl) {
+            artwork = [{ src: thumbnailUrl, sizes: '480x360', type: 'image/jpeg' }];
+        }
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: title || 'YouTube Music',
+            artist: artist || '',
+            album: 'Musicly',
+            artwork: artwork
+        });
+    }
+    
+    // Wait for player to be ready, then load
+    function tryLoad() {
+        if (ytReady && ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+            ytPlayer.loadVideoById(videoId);
+            ytPlayer.setVolume(ytVolume);
+        } else {
+            setTimeout(tryLoad, 200);
+        }
+    }
+    tryLoad();
+};
+
+window.audioInterop.playYouTube = function() {
+    if (ytPlayer && ytReady && activePlayer === 'youtube') {
+        ytPlayer.playVideo();
+    }
+};
+
+window.audioInterop.pauseYouTube = function() {
+    if (ytPlayer && ytReady) {
+        ytPlayer.pauseVideo();
+    }
+};
+
+window.audioInterop.seekYouTube = function(time) {
+    if (ytPlayer && ytReady && activePlayer === 'youtube') {
+        ytPlayer.seekTo(time, true);
+    }
+};
+
+window.audioInterop.setYouTubeVolume = function(vol) {
+    ytVolume = Math.round(vol * 100);
+    if (ytPlayer && ytReady) {
+        ytPlayer.setVolume(ytVolume);
+    }
+};
+
+window.audioInterop.muteYouTube = function() {
+    if (ytPlayer && ytReady) {
+        ytPlayer.mute();
+    }
+};
+
+window.audioInterop.unmuteYouTube = function() {
+    if (ytPlayer && ytReady) {
+        ytPlayer.unMute();
+        ytPlayer.setVolume(ytVolume);
+    }
+};
+
+window.audioInterop.getActivePlayer = function() {
+    return activePlayer;
+};
+
+window.audioInterop.switchToAudio = function() {
+    // Stop YouTube
+    if (ytPlayer && ytReady) {
+        try { ytPlayer.stopVideo(); } catch(e) {}
+    }
+    stopYtTimeUpdates();
+    activePlayer = 'audio';
+};
+
+// Override play/pause for YouTube awareness
+var originalPlay = window.audioInterop.play;
+var originalPause = window.audioInterop.pause;
+
+window.audioInterop.play = function() {
+    if (activePlayer === 'youtube') {
+        window.audioInterop.playYouTube();
+    } else {
+        if (!audio) return;
+        var p = audio.play();
+        if (p) {
+            p.catch(function(err) {
+                console.warn('Play blocked, will retry on next tap:', err.message);
+                pendingPlay = true;
+            });
+        }
+    }
+};
+
+window.audioInterop.pause = function() {
+    if (activePlayer === 'youtube') {
+        window.audioInterop.pauseYouTube();
+    } else {
+        if (audio) audio.pause();
+        pendingPlay = false;
+    }
+    if (dotNetRef) dotNetRef.invokeMethodAsync('OnPlayStateChanged', false);
+};
+
+window.audioInterop.togglePlay = function() {
+    if (activePlayer === 'youtube') {
+        if (ytPlayer && ytReady) {
+            var state = ytPlayer.getPlayerState();
+            if (state === YT.PlayerState.PLAYING) {
+                ytPlayer.pauseVideo();
+            } else {
+                ytPlayer.playVideo();
+            }
+        }
+    } else {
+        if (!audio) return;
+        if (audio.paused) {
+            var p = audio.play();
+            if (p) {
+                p.catch(function(err) {
+                    console.warn('Toggle play blocked:', err.message);
+                    pendingPlay = true;
+                });
+            }
+        } else {
+            audio.pause();
+            pendingPlay = false;
+        }
+    }
+};
+
+// Override seek for YouTube awareness
+window.audioInterop.seek = function(time) {
+    if (activePlayer === 'youtube') {
+        window.audioInterop.seekYouTube(time);
+    } else {
+        if (audio) audio.currentTime = time;
+    }
+};
+
+// Override volume for YouTube awareness
+var originalSetVolume = window.audioInterop.setVolume;
+window.audioInterop.setVolume = function(vol) {
+    if (activePlayer === 'youtube') {
+        window.audioInterop.setYouTubeVolume(vol);
+    }
+    if (audio) audio.volume = Math.max(0, Math.min(1, vol));
+    updateVolumeFill();
+};
+
+// Override mute/unmute for YouTube awareness
+window.audioInterop.mute = function() {
+    if (activePlayer === 'youtube') {
+        window.audioInterop.muteYouTube();
+    }
+    if (audio) {
+        savedVolume = audio.volume;
+        audio.volume = 0;
+        updateVolumeFill();
+    }
+};
+
+window.audioInterop.unmute = function() {
+    if (activePlayer === 'youtube') {
+        window.audioInterop.unmuteYouTube();
+    }
+    if (audio) {
+        audio.volume = savedVolume || 0.7;
+        updateVolumeFill();
+    }
+};
+
+// Pre-load YouTube API on page load for faster first play
+loadYouTubeApi();

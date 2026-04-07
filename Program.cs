@@ -70,6 +70,8 @@ builder.Services.AddScoped<SongRequestService>();
 builder.Services.AddScoped<AchievementService>();
 builder.Services.AddScoped<TrackUploadService>();
 builder.Services.AddScoped<PrivateMessageService>();
+builder.Services.AddHttpClient<YouTubeService>();
+builder.Services.AddScoped<YouTubeService>();
 
 var app = builder.Build();
 

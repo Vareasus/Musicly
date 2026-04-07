@@ -4,7 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <DefaultItemExcludes>$(DefaultItemExcludes);test\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);test\**;check_users.cs;query_users.csx</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

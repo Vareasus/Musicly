@@ -1,4 +1,4 @@
-﻿namespace Musicly.Models;
+namespace Musicly.Models;
 
 public class Track
 {
@@ -12,4 +12,6 @@ public class Track
     public string Genre { get; set; } = "Ambient";
     public string Mood { get; set; } = "Chill";
     public List<LyricLine> Lyrics { get; set; } = new();
+    public bool IsYouTube { get; set; }
+    public string? YouTubeVideoId { get; set; }
 }

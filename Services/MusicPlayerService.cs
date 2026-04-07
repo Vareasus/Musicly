@@ -1,4 +1,4 @@
-﻿using Musicly.Data;
+using Musicly.Data;
 using Musicly.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -397,6 +397,48 @@ public class MusicPlayerService
         ShowQueue = !ShowQueue;
         NotifyStateChanged();
     }
+
+    // ========================================
+    // YouTube Integration
+    // ========================================
+
+    /// <summary>
+    /// Load a YouTube track for playback. Adds it as a temporary track.
+    /// </summary>
+    public void LoadYouTubeTrack(Models.YouTubeSearchResult result)
+    {
+        // Check if already in the list
+        var existing = Tracks.FindIndex(t => t.IsYouTube && t.YouTubeVideoId == result.VideoId);
+        if (existing >= 0)
+        {
+            LoadTrack(existing);
+            return;
+        }
+
+        // Create a temporary track from YouTube result
+        var ytTrack = new Track
+        {
+            Id = -(Tracks.Count + 1000), // Negative ID to avoid DB conflicts
+            Title = result.Title,
+            Artist = result.ChannelName,
+            Src = "", // No MP3 source
+            Genre = "YouTube",
+            Mood = "YouTube",
+            GradientColor = "linear-gradient(135deg, #ff0000, #cc0000, #990000, #660000)",
+            CoverImage = result.ThumbnailUrl,
+            IsYouTube = true,
+            YouTubeVideoId = result.VideoId,
+            Lyrics = new List<LyricLine> { new() { Time = 0, Text = "♪ YouTube Music ♪" } }
+        };
+
+        Tracks.Add(ytTrack);
+        LoadTrack(Tracks.Count - 1);
+    }
+
+    /// <summary>
+    /// Check if the current track is a YouTube track.
+    /// </summary>
+    public bool IsCurrentTrackYouTube => CurrentTrack.IsYouTube;
 
     // ========================================
     // Crossfade

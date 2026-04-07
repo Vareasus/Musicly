@@ -85,7 +85,7 @@
     private async Task OnPrev()
     {
         Player.PrevTrack();
-        await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
+        await LoadCurrentTrack();
         if (Player.IsPlaying)
             await JS.InvokeVoidAsync("audioInterop.play");
     }
@@ -93,9 +93,23 @@
     private async Task OnNext()
     {
         Player.NextTrack();
-        await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
+        await LoadCurrentTrack();
         if (Player.IsPlaying)
             await JS.InvokeVoidAsync("audioInterop.play");
+    }
+
+    private async Task LoadCurrentTrack()
+    {
+        var track = Player.CurrentTrack;
+        if (track.IsYouTube && !string.IsNullOrEmpty(track.YouTubeVideoId))
+        {
+            await JS.InvokeVoidAsync("audioInterop.loadYouTubeTrack", track.YouTubeVideoId, track.Title, track.Artist, track.CoverImage);
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("audioInterop.switchToAudio");
+            await JS.InvokeVoidAsync("audioInterop.loadTrack", track.Src, track.Title, track.Artist, track.CoverImage);
+        }
     }
 
     private void OnShuffle() => Player.ToggleShuffle();
@@ -129,7 +143,7 @@
     private async Task OnDownloadTrack()
     {
         var track = Player.CurrentTrack;
-        if (!string.IsNullOrEmpty(track.Src))
+        if (!track.IsYouTube && !string.IsNullOrEmpty(track.Src))
         {
             var filename = $"{track.Artist} - {track.Title}";
             await JS.InvokeVoidAsync("audioInterop.downloadTrack", track.Src, filename);

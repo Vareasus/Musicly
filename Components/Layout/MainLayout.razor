@@ -50,6 +50,7 @@ else
                 <li><NavLink href="/stats">Stats</NavLink></li>
                 <li><NavLink href="/favorites">Favorites</NavLink></li>
                 <li><NavLink href="/radio">Radio</NavLink></li>
+                <li><NavLink href="/youtube">YouTube</NavLink></li>
                 <li><NavLink href="/requests">Requests</NavLink></li>
                 @if (canAccessMessages)
                 {
@@ -169,6 +170,7 @@ else
         <a href="/stats" class="mobile-nav-link @(Nav.Uri.Contains("/stats") ? "active" : "")" @onclick="CloseMobileNav">📊 Stats</a>
         <a href="/favorites" class="mobile-nav-link @(Nav.Uri.Contains("/favorites") ? "active" : "")" @onclick="CloseMobileNav">❤️ Favorites</a>
         <a href="/radio" class="mobile-nav-link @(Nav.Uri.Contains("/radio") ? "active" : "")" @onclick="CloseMobileNav">📻 Radio</a>
+        <a href="/youtube" class="mobile-nav-link @(Nav.Uri.Contains("/youtube") ? "active" : "")" @onclick="CloseMobileNav">🎬 YouTube</a>
         <a href="/requests" class="mobile-nav-link @(Nav.Uri.Contains("/requests") ? "active" : "")" @onclick="CloseMobileNav">📝 Requests</a>
         @if (canAccessMessages)
         {
@@ -298,9 +300,12 @@ else
                 <button class="bp-icon-btn" title="Ekolayzer" @onclick="ToggleEqPanel">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z"/></svg>
                 </button>
-                <button class="bp-icon-btn" title="İndir" @onclick="OnDownloadTrack">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                </button>
+                @if (!Player.IsCurrentTrackYouTube)
+                {
+                    <button class="bp-icon-btn" title="İndir" @onclick="OnDownloadTrack">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    </button>
+                }
                 <div class="volume-container">
                     <span class="vol-icon @(Player.IsMuted ? "muted" : "")" @onclick="OnMuteToggle" title="@(Player.IsMuted ? "Unmute (M)" : "Mute (M)")">
                         @if (Player.IsMuted)
@@ -506,7 +511,14 @@ else
 
             dotNetRef = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("audioInterop.init", dotNetRef);
-            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
+            if (Player.CurrentTrack.IsYouTube && !string.IsNullOrEmpty(Player.CurrentTrack.YouTubeVideoId))
+            {
+                await JS.InvokeVoidAsync("audioInterop.loadYouTubeTrack", Player.CurrentTrack.YouTubeVideoId, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
+            }
             await JS.InvokeVoidAsync("audioInterop.initEq");
 
             // Restore theme from localStorage
@@ -619,7 +631,7 @@ else
         if (nextIdx >= 0)
         {
             Player.LoadTrack(nextIdx);
-            await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
+            await LoadCurrentTrackInJs();
             await JS.InvokeVoidAsync("audioInterop.play");
         }
         else
@@ -661,7 +673,7 @@ else
             // If no track is loaded yet, load the first one
             if (Player.Duration <= 0 && Player.CurrentTime <= 0)
             {
-                await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src, Player.CurrentTrack.Title, Player.CurrentTrack.Artist, Player.CurrentTrack.CoverImage);
+                await LoadCurrentTrackInJs();
             }
             await JS.InvokeVoidAsync("audioInterop.play");
             Player.SetPlaying(true);
@@ -676,7 +688,7 @@ else
     private async Task OnPrev()
     {
         Player.PrevTrack();
-        await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+        await LoadCurrentTrackInJs();
         if (Player.IsPlaying)
             await JS.InvokeVoidAsync("audioInterop.play");
     }
@@ -684,9 +696,27 @@ else
     private async Task OnNext()
     {
         Player.NextTrack();
-        await JS.InvokeVoidAsync("audioInterop.loadTrack", Player.CurrentTrack.Src);
+        await LoadCurrentTrackInJs();
         if (Player.IsPlaying)
             await JS.InvokeVoidAsync("audioInterop.play");
+    }
+
+    /// <summary>
+    /// Load the current track in JS — routes to YouTube or regular audio.
+    /// </summary>
+    private async Task LoadCurrentTrackInJs()
+    {
+        var track = Player.CurrentTrack;
+        if (track.IsYouTube && !string.IsNullOrEmpty(track.YouTubeVideoId))
+        {
+            await JS.InvokeVoidAsync("audioInterop.loadYouTubeTrack", track.YouTubeVideoId, track.Title, track.Artist, track.CoverImage);
+        }
+        else
+        {
+            // Switch back to audio player if coming from YouTube
+            await JS.InvokeVoidAsync("audioInterop.switchToAudio");
+            await JS.InvokeVoidAsync("audioInterop.loadTrack", track.Src, track.Title, track.Artist, track.CoverImage);
+        }
     }
 
     private void OnShuffle() => Player.ToggleShuffle();
@@ -861,7 +891,7 @@ else
     private async Task OnDownloadTrack()
     {
         var track = Player.CurrentTrack;
-        if (!string.IsNullOrEmpty(track.Src))
+        if (!track.IsYouTube && !string.IsNullOrEmpty(track.Src))
         {
             var filename = $"{track.Artist} - {track.Title}";
             await JS.InvokeVoidAsync("audioInterop.downloadTrack", track.Src, filename);
