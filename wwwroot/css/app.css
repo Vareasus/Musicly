@@ -4949,7 +4949,8 @@ html {
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    .bottom-like-btns, .comment-toggle-btn { display: none; }
+    .comment-toggle-btn { display: none; }
+    .bottom-like-btns { display: flex; gap: 6px; align-items: center; }
 
     /* Center: prev/play/next — centered in remaining space */
     .bottom-player-center {
