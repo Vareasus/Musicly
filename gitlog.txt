@@ -1,0 +1,10 @@
+﻿3cf7d87 feat: Audio Visualizer, Share button, Language toggle (TR/EN), i18n service
+bf2e5da feat: auto-fetch synced lyrics for YouTube tracks via lrclib.net
+b921188 fix: YouTube seek bar, volume, play/pause and keyboard shortcuts
+1d6788f feat: YouTube Music integration - search and play songs from YouTube via IFrame Player API
+bb782e8 feat: add Vareasus to private messaging, multi-partner tabs for Admin
+feedd12 fix: detailed error logging for message service, remove hacer seed data
+f3f826f fix: remove hacer seed data conflict, clean migration for PrivateMessages table
+4871abc fix: replace textarea with form+input for proper Enter key submission
+4597bac fix: message sending with error handling, Enter key support, and migration restart
+7037e58 fix: send button disabled attribute rendering
