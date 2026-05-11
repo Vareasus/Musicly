@@ -2,9 +2,9 @@ services:
   app:
     build: .
     ports:
-      - "8080:8080"
+      - "5000:8080"
     environment:
-      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=Musically;Username=postgres;Password=Hundiba123
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=musiclydb;Username=postgres;Password=Hundiba123
     depends_on:
       db:
         condition: service_healthy
@@ -13,7 +13,7 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: Musically
+      POSTGRES_DB: musiclydb
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: Hundiba123
     ports:
@@ -25,6 +25,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+  nginx:
+    image: nginx 
+    container_name: musicly-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./conf/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app 
     restart: unless-stopped
 
 volumes:
