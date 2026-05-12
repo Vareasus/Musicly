@@ -1,3 +1,5 @@
+name: musicly
+
 services:
   app:
     build: .
