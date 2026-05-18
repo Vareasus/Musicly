@@ -49,8 +49,8 @@ public class TrackUploadService
         cacheKey,
         JsonSerializer.Serialize(tracks));
 
-    return List<DbTrack>;
-}
+    return await db.Tracks.ToListAsync();
+    }
 
     /// <summary>
     /// Upload an MP3 file and add it to the database.
