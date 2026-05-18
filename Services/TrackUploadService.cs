@@ -34,11 +34,19 @@ public class TrackUploadService
             return JsonSerializer.Deserialize<List<DbTrack>>(cached)!;
         }
 
+        Console.WriteLine("TRACK CACHE MISS");
+
         await using var db = await _dbFactory.CreateDbContextAsync();
 
         var tracks = await db.Tracks
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync();
+
+        await _redis.SetAsync(
+            cacheKey,
+            JsonSerializer.Serialize(tracks),
+            TimeSpan.FromMinutes(10)
+        );
 
         return tracks;
     }
