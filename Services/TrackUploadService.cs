@@ -45,9 +45,7 @@ public class TrackUploadService
 
         return tracks;
     }
-}
-
-
+    
     /// <summary>
     /// Upload an MP3 file and add it to the database.
     /// Returns (success, errorMessage).
