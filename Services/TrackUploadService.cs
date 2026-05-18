@@ -11,17 +11,20 @@ public class TrackUploadService
     private readonly RedisCacheService _redis;
     private readonly IWebHostEnvironment _env;
     private readonly MusicPlayerService _player;
-    private const long MaxFileSize = 50 * 1024 * 1024; // 50 MB 
+    private const long MaxFileSize = 50 * 1024 * 1024;
 
-    public TrackUploadService(IDbContextFactory<AppDbContext> dbFactory,
-                            RedisCacheService redis,IWebHostEnvironment env, MusicPlayerService player)
+    public TrackUploadService(
+        IDbContextFactory<AppDbContext> dbFactory,
+        RedisCacheService redis,
+        IWebHostEnvironment env,
+        MusicPlayerService player)
     {
         _dbFactory = dbFactory;
+        _redis = redis;
         _env = env;
         _player = player;
-        _redis = redis;
     }
-    /*
+
     public async Task<List<DbTrack>> GetAllTracksAsync()
     {
         var cacheKey = "tracks_all";
@@ -30,61 +33,20 @@ public class TrackUploadService
 
         if (cached != null)
         {
-            Console.WriteLine("TRACK CACHE HIT");
-
             return JsonSerializer.Deserialize<List<DbTrack>>(cached)!;
         }
-
-        Console.WriteLine("TRACK CACHE MISS");
 
         await using var db = await _dbFactory.CreateDbContextAsync();
 
         var tracks = await db.Tracks
+            .AsNoTracking()
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync();
 
-        await _redis.SetAsync(
-            cacheKey,
-            JsonSerializer.Serialize(tracks),
-            TimeSpan.FromMinutes(10)
-        );
-
         return tracks;
-    }*/
-
-    public async Task<List<DbTrack>> GetAllTracksAsync()
-{
-    var cacheKey = "tracks_all";
-
-    var cached = await _redis.GetAsync(cacheKey);
-
-    if (cached != null)
-    {
-        return JsonSerializer.Deserialize<List<DbTrack>>(cached)!;
     }
-
-    await using var db = await _dbFactory.CreateDbContextAsync();
-
-    return await db.Tracks
-        .OrderByDescending(x => x.CreatedAt)
-        .ToListAsync();
 }
 
-    Console.WriteLine("TRACK CACHE MISS");
-
-    using var db = await _dbFactory.CreateDbContextAsync();
-
-    var tracks = await db.Tracks
-        .AsNoTracking()
-        .OrderByDescending(x => x.CreatedAt)
-        .ToListAsync();
-
-    await _redis.SetAsync(
-        cacheKey,
-        JsonSerializer.Serialize(tracks));
-
-    return await db.Tracks.ToListAsync();
-    }
 
     /// <summary>
     /// Upload an MP3 file and add it to the database.
