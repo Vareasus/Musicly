@@ -21,7 +21,7 @@ public class TrackUploadService
         _player = player;
         _redis = redis;
     }
-    public async Task<List<Track>> GetAllTracksAsync()
+    public async Task<List<DbTrack>> GetAllTracksAsync()
 {
     var cacheKey = "tracks_all";
 
