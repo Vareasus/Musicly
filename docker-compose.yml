@@ -6,11 +6,28 @@ services:
     ports:
       - "5000:8080"
     environment:
-      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=musiclydb;Username=postgres;Password=Hundiba123
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=musiclydb;Username=postgres;Password=Hundiba123      
+      - Redis__Connection=redis:6379
+
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+
+    container_name: redis
+
+    restart: unless-stopped
+
+    command: redis-server --appendonly yes
+
+    volumes:
+      - redisdata:/data
+    
 
   db:
     image: postgres:16-alpine
@@ -42,3 +59,4 @@ services:
 
 volumes:
   pgdata:
+  redisdata:

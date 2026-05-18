@@ -2,20 +2,54 @@
 using Musicly.Data;
 using Musicly.Models;
 using Microsoft.EntityFrameworkCore;
-
+using System.Text.Json;
 namespace Musicly.Services;
 
 public class TrackUploadService
 {
+    private readonly RedisCacheService _redis;
     private readonly IWebHostEnvironment _env;
     private readonly MusicPlayerService _player;
-    private const long MaxFileSize = 50 * 1024 * 1024; // 50 MB
+    private const long MaxFileSize = 50 * 1024 * 1024; // 50 MB 
 
-    public TrackUploadService(IWebHostEnvironment env, MusicPlayerService player)
+    public TrackUploadService(IDbContextFactory<AppDbContext> dbFactory,
+                            RedisCacheService redis,IWebHostEnvironment env, MusicPlayerService player)
     {
+        _dbFactory = dbFactory;
         _env = env;
         _player = player;
+        _redis = redis;
     }
+    public async Task<List<Track>> GetAllTracksAsync()
+{
+    var cacheKey = "tracks_all";
+
+    var cached =
+        await _redis.GetAsync(cacheKey);
+
+    if (cached != null)
+    {
+        Console.WriteLine("TRACK CACHE HIT");
+
+        return JsonSerializer.Deserialize<List<Track>>
+            (cached)!;
+    }
+
+    Console.WriteLine("TRACK CACHE MISS");
+
+    using var db = await _dbFactory.CreateDbContextAsync();
+
+    var tracks = await db.Tracks
+        .AsNoTracking()
+        .OrderByDescending(x => x.CreatedAt)
+        .ToListAsync();
+
+    await _redis.SetAsync(
+        cacheKey,
+        JsonSerializer.Serialize(tracks));
+
+    return tracks;
+}
 
     /// <summary>
     /// Upload an MP3 file and add it to the database.

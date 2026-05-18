@@ -1,6 +1,7 @@
 @implements IDisposable
 @inject Musicly.Services.MusicPlayerService Player
 @inject IJSRuntime JS
+@inject RedisCacheService Redis
 
 <div class="tracklist-section">
     <h2>Your Music</h2>
@@ -45,10 +46,18 @@
 </div>
 
 @code {
-    protected override void OnInitialized()
+
+    protected override async Task OnInitializedAsync()
     {
+        await Redis.SetAsync(
+            "razor_test",
+            "working");
+
+        Console.WriteLine("REDIS FROM RAZOR");
+
         Player.OnStateChanged += StateChanged;
     }
+
 
     private void StateChanged() => _ = InvokeAsync(StateHasChanged);
 

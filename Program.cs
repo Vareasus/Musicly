@@ -1,4 +1,5 @@
 using Musicly.Components;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Musicly.Data;
 using Musicly.Services;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -14,6 +15,15 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
+
+builder.Services.AddControllers();
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration =
+        builder.Configuration["Redis:Connection"];
+});
+builder.Services.AddScoped<RedisCacheService>();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

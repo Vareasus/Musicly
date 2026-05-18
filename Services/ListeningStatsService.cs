@@ -1,7 +1,7 @@
-﻿using Musicly.Data;
+using Musicly.Data;
 using Musicly.Models;
 using Microsoft.EntityFrameworkCore;
-
+using System.Text.Json;
 namespace Musicly.Services;
 
 public class ListeningStatsService
@@ -14,10 +14,14 @@ public class ListeningStatsService
 
     public event Action? OnStatsChanged;
 
-    public ListeningStatsService(IDbContextFactory<AppDbContext> dbFactory)
+    public ListeningStatsService(IDbContextFactory<AppDbContext> dbFactory,
+                                 RedisCacheService redis)
     {
         _dbFactory = dbFactory;
+        _redis = redis;
+
     }
+    private readonly RedisCacheService _redis;
 
     public void SetCurrentUser(int userId)
     {
@@ -27,13 +31,17 @@ public class ListeningStatsService
     public async Task TrackStartedAsync(Track track)
     {
         if (_currentUserId <= 0) return;
+
         try
         {
             using var db = await _dbFactory.CreateDbContextAsync();
+
             var stat = await GetOrCreateStatAsync(db, track.Id);
+
             stat.PlayCount++;
             stat.LastPlayed = DateTime.UtcNow;
             stat.FirstPlayedAt ??= DateTime.UtcNow;
+
             _currentTrackId = track.Id;
             _lastUpdateTime = DateTime.UtcNow;
 
@@ -46,10 +54,17 @@ public class ListeningStatsService
             });
 
             await db.SaveChangesAsync();
+
+            // REDIS CACHE CLEAR
+            await _redis.RemoveAsync($"user_stats_{_currentUserId}");
+
             OnStatsChanged?.Invoke();
         }
-        catch { }
-    }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }   
+}
 
     public void RecordTimeSlice()
     {
@@ -84,16 +99,43 @@ public class ListeningStatsService
 
     // === Stats Getters ===
 
-    public async Task<List<UserTrackStats>> GetAllStatsAsync()
+   public async Task<List<UserTrackStats>> GetAllStatsAsync()
+{
+    await _redis.SetAsync("musicly_test", "working");
+
+    if (_currentUserId >= 0)
+        return new();
+
+    var cacheKey = $"user_stats_{_currentUserId}";
+
+    var cached =
+        await _redis.GetAsync(cacheKey);
+
+    if (cached != null)
     {
-        if (_currentUserId <= 0) return new();
-        using var db = await _dbFactory.CreateDbContextAsync();
-        return await db.UserTrackStats
-            .AsNoTracking()
-            .Where(s => s.UserId == _currentUserId && s.PlayCount > 0)
-            .OrderByDescending(s => s.PlayCount)
-            .ToListAsync();
+        Console.WriteLine("CACHE HIT");
+
+        return JsonSerializer.Deserialize<List<UserTrackStats>>(cached)!;
     }
+
+    Console.WriteLine("CACHE MISS");
+
+    using var db = await _dbFactory.CreateDbContextAsync();
+
+    var stats = await db.UserTrackStats
+        .AsNoTracking()
+        .Where(s =>
+            s.UserId == _currentUserId &&
+            s.PlayCount > 0)
+        .OrderByDescending(s => s.PlayCount)
+        .ToListAsync();
+
+    await _redis.SetAsync(
+        cacheKey,
+        JsonSerializer.Serialize(stats));
+
+    return stats;
+}
 
     public async Task<int> GetTotalPlaysAsync()
     {
