@@ -49,7 +49,7 @@ public class TrackUploadService
         cacheKey,
         JsonSerializer.Serialize(tracks));
 
-    return tracks;
+    return List<DbTrack>;
 }
 
     /// <summary>
