@@ -22,18 +22,25 @@ public class TrackUploadService
         _redis = redis;
     }
     public async Task<List<DbTrack>> GetAllTracksAsync()
-{
-    var cacheKey = "tracks_all";
-
-    var cached =
-        await _redis.GetAsync(cacheKey);
-
-    if (cached != null)
     {
-        Console.WriteLine("TRACK CACHE HIT");
+        var cacheKey = "tracks_all";
 
-        return JsonSerializer.Deserialize<List<Track>>
-            (cached)!;
+        var cached = await _redis.GetAsync(cacheKey);
+
+        if (cached != null)
+        {
+            Console.WriteLine("TRACK CACHE HIT");
+
+            return JsonSerializer.Deserialize<List<DbTrack>>(cached)!;
+        }
+
+        await using var db = await _dbFactory.CreateDbContextAsync();
+
+        var tracks = await db.Tracks
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync();
+
+        return tracks;
     }
 
     Console.WriteLine("TRACK CACHE MISS");
