@@ -7,6 +7,7 @@ namespace Musicly.Services;
 
 public class TrackUploadService
 {
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly RedisCacheService _redis;
     private readonly IWebHostEnvironment _env;
     private readonly MusicPlayerService _player;
