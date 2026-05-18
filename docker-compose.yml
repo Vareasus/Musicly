@@ -6,7 +6,7 @@ services:
     ports:
       - "5000:8080"
     environment:
-      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=musiclydb;Username=postgres;Password=Hundiba123      
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=musiclydb;Username=postgres;Password=Hundiba123
       - Redis__Connection=redis:6379
 
     depends_on:
@@ -15,6 +15,24 @@ services:
       redis:
         condition: service_started
     restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+
+  node-exporter:
+    image: prom/node-exporter
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
 
   redis:
     image: redis:7-alpine
@@ -27,7 +45,6 @@ services:
 
     volumes:
       - redisdata:/data
-    
 
   db:
     image: postgres:16-alpine
@@ -40,13 +57,13 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
   nginx:
-    image: nginx 
+    image: nginx
     container_name: musicly-nginx
     ports:
       - "80:80"
@@ -54,7 +71,7 @@ services:
       - /opt/apps/Musicly/conf/nginx.conf:/etc/nginx/nginx.conf:ro
 
     depends_on:
-      - app 
+      - app
     restart: unless-stopped
 
 volumes:
