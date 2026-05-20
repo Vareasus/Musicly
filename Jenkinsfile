@@ -2,13 +2,16 @@ pipeline {
     agent any
 
     stages {
-
-        stage('Docker Compose Build') {
+        stage('Deploy') {
             steps {
-                sh 'docker-compose down'
-                sh 'docker-compose up -d --build'
+                dir('/opt/apps/Musicly') {
+                    sh 'git reset --hard'
+                    sh 'git clean -fd'
+                    sh 'git pull origin main'
+                    sh 'docker compose down'
+                    sh 'docker compose up -d --build'
+                }
             }
         }
-
     }
 }
