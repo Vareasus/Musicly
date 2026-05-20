@@ -1,4 +1,4 @@
-﻿using Musicly.Data;
+using Musicly.Data;
 using Musicly.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,15 +9,41 @@ public class CommentService
     private readonly AppDbContext _db;
     private readonly NotificationService _notifService;
 
-    public CommentService(AppDbContext db, NotificationService notifService)
+    private readonly MusicPlayerService _player;
+
+    public CommentService(AppDbContext db, NotificationService notifService, MusicPlayerService player)
     {
         _db = db;
         _notifService = notifService;
+        _player = player;
     }
 
     /// <summary>Get all comments for a track, ordered by newest first, with like counts</summary>
     public async Task<List<CommentWithLikes>> GetCommentsForTrackAsync(int trackId, int currentUserId)
     {
+        if (trackId < 0)
+        {
+            var track = _player.Tracks.FirstOrDefault(t => t.Id == trackId);
+            if (track != null && track.IsYouTube)
+            {
+                var dbTrack = await _db.Tracks.AsNoTracking().FirstOrDefaultAsync(t => t.FilePath.StartsWith($"youtube:{track.YouTubeVideoId}|") || t.FilePath == $"youtube:{track.YouTubeVideoId}");
+                if (dbTrack != null)
+                {
+                    trackId = dbTrack.Id;
+                    track.Id = dbTrack.Id;
+                    _player.NotifyStateChanged();
+                }
+                else
+                {
+                    return new List<CommentWithLikes>();
+                }
+            }
+            else
+            {
+                return new List<CommentWithLikes>();
+            }
+        }
+
         var comments = await _db.TrackComments
             .Where(c => c.TrackId == trackId)
             .OrderByDescending(c => c.CreatedAt)
@@ -42,6 +68,19 @@ public class CommentService
     public async Task<TrackComment> AddCommentAsync(int trackId, int userId, string username, string text, int rating)
     {
         rating = Math.Clamp(rating, 1, 5);
+
+        if (trackId < 0)
+        {
+            var track = _player.Tracks.FirstOrDefault(t => t.Id == trackId);
+            if (track != null)
+            {
+                trackId = await _player.EnsureYouTubeTrackSavedAsync(track);
+            }
+            else
+            {
+                throw new InvalidOperationException("Track not found");
+            }
+        }
 
         var comment = new TrackComment
         {
@@ -157,6 +196,27 @@ public class CommentService
     /// <summary>Get average rating for a track</summary>
     public async Task<(double Average, int Count)> GetAverageRatingAsync(int trackId)
     {
+        if (trackId < 0)
+        {
+            var track = _player.Tracks.FirstOrDefault(t => t.Id == trackId);
+            if (track != null && track.IsYouTube)
+            {
+                var dbTrack = await _db.Tracks.AsNoTracking().FirstOrDefaultAsync(t => t.FilePath.StartsWith($"youtube:{track.YouTubeVideoId}|") || t.FilePath == $"youtube:{track.YouTubeVideoId}");
+                if (dbTrack != null)
+                {
+                    trackId = dbTrack.Id;
+                }
+                else
+                {
+                    return (0, 0);
+                }
+            }
+            else
+            {
+                return (0, 0);
+            }
+        }
+
         var ratings = await _db.TrackComments
             .Where(c => c.TrackId == trackId)
             .Select(c => c.Rating)

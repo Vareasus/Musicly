@@ -50,18 +50,38 @@ public class MusicPlayerService
             {
                 var hardcodedLyrics = GetHardcodedLyrics();
                 var coverMap = GetCoverImageMap();
-                Tracks = dbTracks.Select(dt => new Track
-                {
-                    Id = dt.Id,
-                    Title = dt.Title,
-                    Artist = dt.Artist,
-                    Src = dt.FilePath,
-                    Genre = dt.Genre,
-                    Mood = dt.Mood,
-                    GradientColor = dt.GradientColor,
-                    IconSvg = dt.IconSvg,
-                    CoverImage = coverMap.GetValueOrDefault(dt.Id, ""),
-                    Lyrics = hardcodedLyrics.GetValueOrDefault(dt.Id, new List<LyricLine> { new() { Time = 0, Text = "♪ ♪" } })
+                Tracks = dbTracks.Select(dt => {
+                    var isYt = dt.FilePath.StartsWith("youtube:");
+                    string? ytVideoId = null;
+                    string coverImage = "";
+                    if (isYt)
+                    {
+                        var parts = dt.FilePath.Substring("youtube:".Length).Split('|');
+                        ytVideoId = parts[0];
+                        if (parts.Length > 1)
+                        {
+                            coverImage = parts[1];
+                        }
+                    }
+                    else
+                    {
+                        coverImage = coverMap.GetValueOrDefault(dt.Id, "");
+                    }
+                    return new Track
+                    {
+                        Id = dt.Id,
+                        Title = dt.Title,
+                        Artist = dt.Artist,
+                        Src = isYt ? "" : dt.FilePath,
+                        Genre = dt.Genre,
+                        Mood = dt.Mood,
+                        GradientColor = dt.GradientColor,
+                        IconSvg = dt.IconSvg,
+                        CoverImage = coverImage,
+                        IsYouTube = isYt,
+                        YouTubeVideoId = ytVideoId,
+                        Lyrics = isYt ? new List<LyricLine> { new() { Time = 0, Text = "♪ YouTube Music ♪" } } : hardcodedLyrics.GetValueOrDefault(dt.Id, new List<LyricLine> { new() { Time = 0, Text = "♪ ♪" } })
+                    };
                 }).ToList();
                 _tracksLoaded = true;
                 NotifyStateChanged();
@@ -439,6 +459,47 @@ public class MusicPlayerService
     /// Check if the current track is a YouTube track.
     /// </summary>
     public bool IsCurrentTrackYouTube => CurrentTrack.IsYouTube;
+
+    // ========================================
+    // YouTube Integration
+    // ========================================
+    public async Task<int> EnsureYouTubeTrackSavedAsync(Track track)
+    {
+        if (!track.IsYouTube) return track.Id;
+        if (track.Id > 0) return track.Id;
+
+        using var db = await _dbFactory.CreateDbContextAsync();
+        
+        var youtubePath = $"youtube:{track.YouTubeVideoId}|{track.CoverImage}";
+        var existingDbTrack = await db.Tracks.FirstOrDefaultAsync(t => t.FilePath.StartsWith($"youtube:{track.YouTubeVideoId}|") || t.FilePath == $"youtube:{track.YouTubeVideoId}");
+        
+        if (existingDbTrack != null)
+        {
+            track.Id = existingDbTrack.Id;
+            NotifyStateChanged();
+            return track.Id;
+        }
+
+        var dbTrack = new DbTrack
+        {
+            Title = track.Title,
+            Artist = track.Artist,
+            FilePath = youtubePath,
+            Genre = track.Genre,
+            Mood = track.Mood,
+            GradientColor = track.GradientColor,
+            IconSvg = track.IconSvg,
+            CreatedAt = DateTime.UtcNow,
+            AddedByUserId = null
+        };
+
+        db.Tracks.Add(dbTrack);
+        await db.SaveChangesAsync();
+
+        track.Id = dbTrack.Id;
+        NotifyStateChanged();
+        return track.Id;
+    }
 
     // ========================================
     // Crossfade

@@ -14,14 +14,17 @@ public class ListeningStatsService
 
     public event Action? OnStatsChanged;
 
+    private readonly RedisCacheService _redis;
+    private readonly MusicPlayerService _player;
+
     public ListeningStatsService(IDbContextFactory<AppDbContext> dbFactory,
-                                 RedisCacheService redis)
+                                 RedisCacheService redis,
+                                 MusicPlayerService player)
     {
         _dbFactory = dbFactory;
         _redis = redis;
-
+        _player = player;
     }
-    private readonly RedisCacheService _redis;
 
     public void SetCurrentUser(int userId)
     {
@@ -34,22 +37,28 @@ public class ListeningStatsService
 
         try
         {
+            var trackId = track.Id;
+            if (track.IsYouTube && track.Id < 0)
+            {
+                trackId = await _player.EnsureYouTubeTrackSavedAsync(track);
+            }
+
             using var db = await _dbFactory.CreateDbContextAsync();
 
-            var stat = await GetOrCreateStatAsync(db, track.Id);
+            var stat = await GetOrCreateStatAsync(db, trackId);
 
             stat.PlayCount++;
             stat.LastPlayed = DateTime.UtcNow;
             stat.FirstPlayedAt ??= DateTime.UtcNow;
 
-            _currentTrackId = track.Id;
+            _currentTrackId = trackId;
             _lastUpdateTime = DateTime.UtcNow;
 
             // Record listening history
             db.Set<ListeningHistory>().Add(new ListeningHistory
             {
                 UserId = _currentUserId,
-                TrackId = track.Id,
+                TrackId = trackId,
                 StartedAt = DateTime.UtcNow
             });
 
@@ -206,6 +215,19 @@ public class ListeningStatsService
         if (_currentUserId <= 0) return;
         try
         {
+            if (trackId < 0)
+            {
+                var track = _player.Tracks.FirstOrDefault(t => t.Id == trackId);
+                if (track != null)
+                {
+                    trackId = await _player.EnsureYouTubeTrackSavedAsync(track);
+                }
+                else
+                {
+                    return;
+                }
+            }
+
             using var db = await _dbFactory.CreateDbContextAsync();
             var stat = await GetOrCreateStatAsync(db, trackId);
             stat.IsLiked = !stat.IsLiked;
@@ -221,6 +243,19 @@ public class ListeningStatsService
         if (_currentUserId <= 0) return;
         try
         {
+            if (trackId < 0)
+            {
+                var track = _player.Tracks.FirstOrDefault(t => t.Id == trackId);
+                if (track != null)
+                {
+                    trackId = await _player.EnsureYouTubeTrackSavedAsync(track);
+                }
+                else
+                {
+                    return;
+                }
+            }
+
             using var db = await _dbFactory.CreateDbContextAsync();
             var stat = await GetOrCreateStatAsync(db, trackId);
             stat.IsDisliked = !stat.IsDisliked;
