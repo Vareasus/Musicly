@@ -112,7 +112,7 @@ public class ListeningStatsService
 {
     await _redis.SetAsync("musicly_test", "working");
 
-    if (_currentUserId >= 0)
+    if (_currentUserId <= 0)
         return new();
 
     var cacheKey = $"user_stats_{_currentUserId}";
